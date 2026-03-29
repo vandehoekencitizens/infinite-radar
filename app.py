@@ -72,7 +72,7 @@ while True:
             heading = f.get("heading", 0)
 
             icon_html = f"""
-            <img src="https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/main/f5c530aa-d922-4920-9313-63a11c7f2921.png"
+            <img src="https://raw.githubusercontent.com/vandehoekencitizens/infinite-radar/main/f5c530aa-d922-4920-9313-63a11c7f2921.png"
                  style="width:20px; transform: rotate({heading}deg);">
             """
 
