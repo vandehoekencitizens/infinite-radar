@@ -1,4 +1,4 @@
-const API_KEY = "PUT_YOUR_API_KEY_HERE";
+const API_KEY = "tyy8znhl0u5kbbb2vuvdhfetmsil041u";
 
 const viewer = new Cesium.Viewer("cesiumContainer", {
   terrainProvider: Cesium.createWorldTerrain()
