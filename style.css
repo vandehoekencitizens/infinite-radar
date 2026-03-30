@@ -1,1 +1,40 @@
+html, body, #cesiumContainer {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+}
 
+#topbar {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 10;
+  background: rgba(0,0,0,0.7);
+  padding: 10px;
+  color: white;
+  border-radius: 10px;
+}
+
+#infoPanel {
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  background: rgba(0,0,0,0.85);
+  color: white;
+  padding: 10px;
+}
+
+#cockpit {
+  position: absolute;
+  bottom: 80px;
+  right: 10px;
+  width: 300px;
+}
+
+#pfd, #nd {
+  background: black;
+  color: lime;
+  padding: 10px;
+  margin-top: 10px;
+  font-family: monospace;
+}
