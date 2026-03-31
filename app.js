@@ -2,7 +2,7 @@ const API_KEY = "tyy8znhl0u5kbbb2vuvdhfetmsil041u";
 Cesium.Ion.defaultAccessToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI3MDU4NWI1YS03ZGUxLTRmMzEtODEwZi01MDNlM2QyMTg5MzAiLCJpZCI6NDExNTkzLCJpYXQiOjE3NzQ5MjgxNjh9.NeKegq8BpQ4KqIs2hJWNgoEy2c0vidgNg869ldUVFew";
 
 const viewer = new Cesium.Viewer("cesiumContainer", {
-  terrainProvider: Cesium.createWorldTerrain()
+  terrain: Cesium.Terrain.fromWorldTerrain()
 });
 
 viewer.scene.globe.baseColor = Cesium.Color.BLACK;
