@@ -1,18 +1,26 @@
 const API_KEY = "tyy8znhl0u5kbbb2vuvdhfetmsil041u";
 Cesium.Ion.defaultAccessToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI3MDU4NWI1YS03ZGUxLTRmMzEtODEwZi01MDNlM2QyMTg5MzAiLCJpZCI6NDExNTkzLCJpYXQiOjE3NzQ5MjgxNjh9.NeKegq8BpQ4KqIs2hJWNgoEy2c0vidgNg869ldUVFew";
 
+/* =========================
+   VIEWER (FIXED TERRAIN)
+========================= */
 const viewer = new Cesium.Viewer("cesiumContainer", {
-  terrain: Cesium.Terrain.fromWorldTerrain()
+  terrain: Cesium.Terrain.fromWorldTerrain(),
+  imageryProvider: new Cesium.IonImageryProvider({
+    assetId: 3 // Cesium World Imagery
+  })
 });
 
+// Improve visual feel
 viewer.scene.globe.baseColor = Cesium.Color.BLACK;
 viewer.clock.shouldAnimate = true;
+viewer.clock.multiplier = 1;
 
 let aircraft = {};
 let selected = null;
 
 /* =========================
-   MODE SWITCH (Radar / IFE)
+   MODE HANDLING
 ========================= */
 function updateMode() {
   const mode = document.getElementById("mode").value;
@@ -21,43 +29,63 @@ function updateMode() {
   document.body.classList.toggle("ife-mode", mode === "ife");
 }
 
+document.getElementById("mode").addEventListener("change", updateMode);
+
 /* =========================
-   SMOOTH MOVE
+   SMOOTH INTERPOLATION
 ========================= */
-function smoothMove(entity, pos) {
+function smoothMove(entity, newPos) {
   const now = Cesium.JulianDate.now();
-  const prop = new Cesium.SampledPositionProperty();
+  const property = new Cesium.SampledPositionProperty();
 
-  prop.addSample(now, entity.position.getValue(now));
-  prop.addSample(
-    Cesium.JulianDate.addSeconds(now, 2, new Cesium.JulianDate()),
-    pos
-  );
+  const current = entity.position.getValue(now);
+  if (!current) return;
 
-  entity.position = prop;
+  property.addSample(now, current);
+
+  const future = Cesium.JulianDate.addSeconds(now, 2, new Cesium.JulianDate());
+  property.addSample(future, newPos);
+
+  entity.position = property;
 }
 
 /* =========================
-   LOAD FLIGHTS
+   LOAD FLIGHTS (SAFE)
 ========================= */
 async function loadFlights() {
   try {
-    const sessions = await fetch(
+    const sessionsRes = await fetch(
       `https://api.infiniteflight.com/public/v2/sessions?apikey=${API_KEY}`
-    ).then(r => r.json());
+    );
+    const sessions = await sessionsRes.json();
 
-    const server = document.getElementById("server").value;
-    const session = sessions.result?.find(s =>
+    if (!sessions.result) {
+      console.error("Sessions failed:", sessions);
+      return;
+    }
+
+    const server = document.getElementById("server").value.toLowerCase();
+
+    const session = sessions.result.find(s =>
       s.name.toLowerCase().includes(server)
     );
 
-    if (!session) return;
+    if (!session) {
+      console.warn("No matching session found");
+      return;
+    }
 
-    const flights = await fetch(
+    const flightsRes = await fetch(
       `https://api.infiniteflight.com/public/v2/sessions/${session.id}/flights?apikey=${API_KEY}`
-    ).then(r => r.json());
+    );
+    const flights = await flightsRes.json();
 
-    if (!flights.result) return;
+    if (!flights.result) {
+      console.error("Flights failed:", flights);
+      return;
+    }
+
+    const activeIds = new Set(flights.result.map(f => f.id));
 
     flights.result.forEach(f => {
       if (!f.latitude || !f.longitude) return;
@@ -68,6 +96,7 @@ async function loadFlights() {
         (f.altitude || 0) * 0.3048
       );
 
+      // CREATE AIRCRAFT
       if (!aircraft[f.id]) {
         aircraft[f.id] = viewer.entities.add({
           id: f.id,
@@ -86,20 +115,29 @@ async function loadFlights() {
         smoothMove(aircraft[f.id], pos);
       }
 
+      // UPDATE COCKPIT
       if (selected === f.id) {
         updateCockpit(f);
       }
     });
 
-  } catch (e) {
-    console.error(e);
+    // CLEANUP OLD AIRCRAFT
+    Object.keys(aircraft).forEach(id => {
+      if (!activeIds.has(id)) {
+        viewer.entities.remove(aircraft[id]);
+        delete aircraft[id];
+      }
+    });
+
+  } catch (err) {
+    console.error("API Error:", err);
   }
 }
 
 /* =========================
-   CLICK SELECT
+   CLICK SELECTION
 ========================= */
-viewer.screenSpaceEventHandler.setInputAction(function(click) {
+viewer.screenSpaceEventHandler.setInputAction(click => {
   const picked = viewer.scene.pick(click.position);
 
   if (picked && picked.id) {
@@ -108,7 +146,7 @@ viewer.screenSpaceEventHandler.setInputAction(function(click) {
 }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
 
 /* =========================
-   COCKPIT
+   COCKPIT UI
 ========================= */
 function updateCockpit(f) {
   document.getElementById("pfd").innerHTML = `
@@ -124,7 +162,7 @@ function updateCockpit(f) {
 }
 
 /* =========================
-   CAMERA
+   CAMERA TRACKING (IFE MODE)
 ========================= */
 function updateCamera() {
   if (document.getElementById("mode").value !== "ife") return;
@@ -134,14 +172,20 @@ function updateCamera() {
 }
 
 /* =========================
-   EVENTS
+   DEBUG (VERY IMPORTANT)
 ========================= */
-document.getElementById("mode").addEventListener("change", updateMode);
+console.log("App started. If nothing loads:");
+console.log("- Check API key");
+console.log("- Check console errors (F12)");
+console.log("- Check Cesium token");
 
 /* =========================
-   LOOP
+   MAIN LOOP
 ========================= */
 setInterval(() => {
   loadFlights();
   updateCamera();
 }, 2000);
+
+/* Initialize mode */
+updateMode();
