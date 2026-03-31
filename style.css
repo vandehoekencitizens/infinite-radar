@@ -2,39 +2,82 @@ html, body, #cesiumContainer {
   margin: 0;
   width: 100%;
   height: 100%;
+  overflow: hidden;
 }
 
+/* =========================
+   RADAR MODE (default)
+========================= */
+body.radar-mode #cesiumContainer {
+  filter: brightness(0.6) contrast(1.2);
+}
+
+body.radar-mode #radarOverlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle, transparent 40%, rgba(0,0,0,0.9) 100%),
+    repeating-radial-gradient(circle at center,
+      rgba(0,255,255,0.08) 0px,
+      rgba(0,255,255,0.08) 1px,
+      transparent 1px,
+      transparent 80px);
+}
+
+/* =========================
+   IFE MODE (Panasonic style)
+========================= */
+body.ife-mode #radarOverlay {
+  display: none;
+}
+
+body.ife-mode #cockpit {
+  display: none;
+}
+
+body.ife-mode #topbar {
+  background: rgba(10, 20, 40, 0.85);
+}
+
+/* =========================
+   TOP BAR (clean aviation UI)
+========================= */
 #topbar {
   position: absolute;
   top: 10px;
-  right: 10px;
+  left: 10px;
   z-index: 10;
-  background: rgba(0,0,0,0.7);
+  background: rgba(0,0,0,0.6);
   padding: 10px;
-  color: white;
-  border-radius: 10px;
+  border-radius: 8px;
+  color: #fff;
+  backdrop-filter: blur(8px);
 }
 
-#infoPanel {
-  position: absolute;
-  bottom: 0;
-  width: 100%;
-  background: rgba(0,0,0,0.85);
-  color: white;
-  padding: 10px;
-}
-
+/* =========================
+   COCKPIT (Glass panel style)
+========================= */
 #cockpit {
   position: absolute;
-  bottom: 80px;
-  right: 10px;
-  width: 300px;
+  bottom: 20px;
+  right: 20px;
+  width: 320px;
 }
 
 #pfd, #nd {
-  background: black;
-  color: lime;
+  background: rgba(0,0,0,0.85);
+  border: 1px solid rgba(0,255,255,0.3);
+  color: #00ffff;
   padding: 10px;
   margin-top: 10px;
   font-family: monospace;
+  backdrop-filter: blur(6px);
+}
+
+/* =========================
+   AIRCRAFT (better visibility)
+========================= */
+.cesium-billboard {
+  filter: drop-shadow(0 0 6px cyan);
 }
