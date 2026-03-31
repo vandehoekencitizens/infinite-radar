@@ -1,16 +1,20 @@
 const API_KEY = "tyy8znhl0u5kbbb2vuvdhfetmsil041u";
 Cesium.Ion.defaultAccessToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI3MDU4NWI1YS03ZGUxLTRmMzEtODEwZi01MDNlM2QyMTg5MzAiLCJpZCI6NDExNTkzLCJpYXQiOjE3NzQ5MjgxNjh9.NeKegq8BpQ4KqIs2hJWNgoEy2c0vidgNg869ldUVFew";
+// Infinite Tracker – front-end only build (hardcoded API key)
+// NOTE: Do NOT commit real keys to public repos.
 
+const APP_NAME = "Infinite Tracker";
+const DEFAULT_API_KEY = "YOUR_REAL_API_KEY_HERE"; // ← replace for local testing
 const API_BASE = "https://api.infiniteflight.com/public/v2";
-const POLL_MS = 5000;
+const POLL_MS = 5000; // flight poll interval (ms)
 
 const state = {
-  apiKey: "",
+  apiKey: DEFAULT_API_KEY,
   sessionId: "",
-  mode: "ife",
+  mode: "ife",          // "ife" | "radar"
   polling: null,
   viewer: null,
-  aircraft: new Map(), // flightId -> { entity, last, target, trailPositions }
+  aircraft: new Map(),  // flightId -> { entity, sampled, trailPositions, last, target }
   selectedFlightId: null
 };
 
@@ -23,7 +27,8 @@ const els = {
   hudCallsign: document.getElementById("hudCallsign"),
   hudAlt: document.getElementById("hudAlt"),
   hudSpd: document.getElementById("hudSpd"),
-  hudHdg: document.getElementById("hudHdg")
+  hudHdg: document.getElementById("hudHdg"),
+  title: document.querySelector("h1")
 };
 
 function setStatus(msg) {
@@ -47,8 +52,8 @@ async function apiGet(path) {
 }
 
 function initCesium() {
-  // Optional: set your Cesium Ion token if needed
-  // Cesium.Ion.defaultAccessToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI3MDU4NWI1YS03ZGUxLTRmMzEtODEwZi01MDNlM2QyMTg5MzAiLCJpZCI6NDExNTkzLCJpYXQiOjE3NzQ5MjgxNjh9.NeKegq8BpQ4KqIs2hJWNgoEy2c0vidgNg869ldUVFew";
+  // Optional: set Cesium Ion token if using ion assets/terrain
+  // Cesium.Ion.defaultAccessToken = "YOUR_CESIUM_ION_TOKEN";
 
   state.viewer = new Cesium.Viewer("cesiumContainer", {
     animation: false,
@@ -79,7 +84,11 @@ async function loadSessions() {
 function upsertAircraft(f) {
   const viewer = state.viewer;
   const now = Cesium.JulianDate.now();
-  const targetPos = Cesium.Cartesian3.fromDegrees(f.longitude, f.latitude, f.altitude * 0.3048);
+  const targetPos = Cesium.Cartesian3.fromDegrees(
+    f.longitude,
+    f.latitude,
+    (f.altitude || 0) * 0.3048
+  );
 
   let rec = state.aircraft.get(f.flightId);
   if (!rec) {
@@ -110,7 +119,13 @@ function upsertAircraft(f) {
       }
     });
 
-    rec = { entity, sampled, trailPositions: [targetPos], last: f, target: f };
+    rec = {
+      entity,
+      sampled,
+      trailPositions: [targetPos],
+      last: f,
+      target: f
+    };
     state.aircraft.set(f.flightId, rec);
   } else {
     rec.target = f;
@@ -135,7 +150,6 @@ function updateHud() {
   const rec = state.selectedFlightId ? state.aircraft.get(state.selectedFlightId) : null;
   if (!rec) return;
   const f = rec.last;
-
   els.hudCallsign.textContent = f.callsign || "-";
   els.hudAlt.textContent = Math.round(f.altitude ?? 0);
   els.hudSpd.textContent = Math.round(f.speed ?? 0);
@@ -155,7 +169,6 @@ async function pollFlights() {
 
     removeMissingAircraft(ids);
 
-    // pick first flight if none selected
     if (!state.selectedFlightId && flights.length) {
       state.selectedFlightId = flights[0].flightId;
     }
@@ -180,6 +193,7 @@ function startPolling() {
   state.polling = setInterval(pollFlights, POLL_MS);
 }
 
+// UI events
 els.connectBtn.addEventListener("click", async () => {
   try {
     state.apiKey = els.apiKeyInput.value.trim();
@@ -198,8 +212,17 @@ els.modeBtn.addEventListener("click", () => {
   setMode(state.mode === "ife" ? "radar" : "ife");
 });
 
+// Bootstrap
 (async function bootstrap() {
+  document.title = APP_NAME;
+  if (els.title) els.title.textContent = APP_NAME;
+  els.apiKeyInput.value = DEFAULT_API_KEY || "";
   initCesium();
   setMode("ife");
   setStatus("Ready");
+  try {
+    await loadSessions();
+  } catch (err) {
+    setStatus(`Failed to load sessions: ${err.message}`);
+  }
 })();
