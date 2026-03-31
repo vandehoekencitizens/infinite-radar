@@ -1,10 +1,8 @@
-const API_KEY = "tyy8znhl0u5kbbb2vuvdhfetmsil041u";
+
 Cesium.Ion.defaultAccessToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI3MDU4NWI1YS03ZGUxLTRmMzEtODEwZi01MDNlM2QyMTg5MzAiLCJpZCI6NDExNTkzLCJpYXQiOjE3NzQ5MjgxNjh9.NeKegq8BpQ4KqIs2hJWNgoEy2c0vidgNg869ldUVFew";
-// Infinite Tracker – front-end only build (hardcoded API key)
-// NOTE: Do NOT commit real keys to public repos.
 
 const APP_NAME = "Infinite Tracker";
-const DEFAULT_API_KEY = "YOUR_REAL_API_KEY_HERE"; // ← replace for local testing
+const DEFAULT_API_KEY = tyy8znhl0u5kbbb2vuvdhfetmsil041u"; // ← replace for local testing
 const API_BASE = "https://api.infiniteflight.com/public/v2";
 const POLL_MS = 5000; // flight poll interval (ms)
 
@@ -53,7 +51,7 @@ async function apiGet(path) {
 
 function initCesium() {
   // Optional: set Cesium Ion token if using ion assets/terrain
-  // Cesium.Ion.defaultAccessToken = "YOUR_CESIUM_ION_TOKEN";
+  // Cesium.Ion.defaultAccessToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI3MDU4NWI1YS03ZGUxLTRmMzEtODEwZi01MDNlM2QyMTg5MzAiLCJpZCI6NDExNTkzLCJpYXQiOjE3NzQ5MjgxNjh9.NeKegq8BpQ4KqIs2hJWNgoEy2c0vidgNg869ldUVFew";
 
   state.viewer = new Cesium.Viewer("cesiumContainer", {
     animation: false,
