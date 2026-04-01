@@ -3,16 +3,24 @@ const APP_NAME = "Infinite Tracker";
 
 const DEFAULT_API_KEY = "tyy8znhl0u5kbbb2vuvdhfetmsil041u";
 const CESIUM_ION_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI3MDU4NWI1YS03ZGUxLTRmMzEtODEwZi01MDNlM2QyMTg5MzAiLCJpZCI6NDExNTkzLCJpYXQiOjE3NzQ5MjgxNjh9.NeKegq8BpQ4KqIs2hJWNgoEy2c0vidgNg869ldUVFew";
-const APP_NAME = "Infinite Tracker";
 const API_BASE = "https://api.infiniteflight.com/public/v2";
 
 const POLL_MS = 5000;
-const TRAIL_LENGTH = 80;
+const TRAIL_LENGTH = 100;
 const PLANE_ICON = "https://infinite-tracker.tech/plane.png";
 
-// CARTO transparent overlays
-const LABELS_URL = "https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}.png";
-const BOUNDARIES_URL = "https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}.png"; // labels contains admin boundaries on many zoom levels
+// Overlay candidates (fallback chain)
+const OVERLAY_SOURCES = {
+  labels: [
+    "https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}.png",
+    "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+  ],
+  boundaries: [
+    "https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}.png",
+    "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+  ],
+  subdomains: ["a", "b", "c", "d"]
+};
 
 const state = {
   apiKey: DEFAULT_API_KEY,
@@ -26,7 +34,6 @@ const state = {
   followSelected: false,
   planeIconReady: false,
 
-  // overlays
   labelsEnabled: true,
   boundariesEnabled: true,
   labelsLayer: null,
@@ -86,7 +93,6 @@ const els = {
   gcEgtR: document.getElementById("gcEgtR"),
   gcFpln: document.getElementById("gcFpln"),
 
-  // injected buttons
   labelsToggleBtn: null,
   boundariesToggleBtn: null
 };
@@ -114,29 +120,50 @@ async function apiGet(path) {
   return json.result;
 }
 
-function ensureTopbarButtons() {
+// ---------------------------
+// Robust startup helpers
+// ---------------------------
+function preloadPlaneIcon() {
+  return new Promise((resolve) => {
+    const img = new Image();
+    let settled = false;
+
+    const done = (ok) => {
+      if (settled) return;
+      settled = true;
+      state.planeIconReady = ok;
+      resolve(ok);
+    };
+
+    img.onload = () => done(true);
+    img.onerror = () => {
+      console.error("Plane icon failed:", PLANE_ICON);
+      done(false);
+    };
+
+    setTimeout(() => done(false), 2500); // timeout fallback
+    img.src = `${PLANE_ICON}?v=${Date.now()}`;
+  });
+}
+
+function ensureOverlayButtons() {
   const topActions = document.querySelector(".top-actions");
   if (!topActions) return;
 
   if (!document.getElementById("labelsToggleBtn")) {
     const btn = document.createElement("button");
     btn.id = "labelsToggleBtn";
-    btn.textContent = "Map Labels: ON";
     topActions.prepend(btn);
-    els.labelsToggleBtn = btn;
-  } else {
-    els.labelsToggleBtn = document.getElementById("labelsToggleBtn");
   }
-
   if (!document.getElementById("boundariesToggleBtn")) {
     const btn = document.createElement("button");
     btn.id = "boundariesToggleBtn";
-    btn.textContent = "Boundaries: ON";
     topActions.prepend(btn);
-    els.boundariesToggleBtn = btn;
-  } else {
-    els.boundariesToggleBtn = document.getElementById("boundariesToggleBtn");
   }
+
+  els.labelsToggleBtn = document.getElementById("labelsToggleBtn");
+  els.boundariesToggleBtn = document.getElementById("boundariesToggleBtn");
+  updateOverlayButtonLabels();
 }
 
 function updateOverlayButtonLabels() {
@@ -150,73 +177,71 @@ function updateOverlayButtonLabels() {
   }
 }
 
-function setLayerVisibility(layer, visible) {
+function setLayerVisible(layer, visible) {
   if (!layer) return;
   layer.show = !!visible;
-  layer.alpha = visible ? 1.0 : 0.0;
+  layer.alpha = visible ? 1 : 0;
+}
+
+function makeImageryProvider(url) {
+  return new Cesium.UrlTemplateImageryProvider({
+    url,
+    subdomains: OVERLAY_SOURCES.subdomains,
+    credit: "Map data providers"
+  });
+}
+
+function addOverlayWithFallback(type) {
+  const urls = OVERLAY_SOURCES[type];
+  if (!urls || !state.viewer) return null;
+
+  for (const url of urls) {
+    try {
+      const provider = makeImageryProvider(url);
+      const layer = state.viewer.imageryLayers.addImageryProvider(provider);
+      return { layer, url };
+    } catch (e) {
+      console.warn(`Overlay ${type} source failed: ${url}`, e);
+    }
+  }
+  return null;
 }
 
 function addOverlayLayers() {
-  try {
-    const labelsProvider = new Cesium.UrlTemplateImageryProvider({
-      url: LABELS_URL,
-      subdomains: ["a", "b", "c", "d"],
-      credit: "©OpenStreetMap ©CARTO"
-    });
-
-    const boundariesProvider = new Cesium.UrlTemplateImageryProvider({
-      url: BOUNDARIES_URL,
-      subdomains: ["a", "b", "c", "d"],
-      credit: "©OpenStreetMap ©CARTO"
-    });
-
-    state.labelsLayer = state.viewer.imageryLayers.addImageryProvider(labelsProvider);
-    state.boundariesLayer = state.viewer.imageryLayers.addImageryProvider(boundariesProvider);
-
-    // tune overlay feel
+  const labels = addOverlayWithFallback("labels");
+  if (labels?.layer) {
+    state.labelsLayer = labels.layer;
     state.labelsLayer.brightness = 1.05;
     state.labelsLayer.contrast = 1.1;
-    state.labelsLayer.gamma = 0.95;
+    setLayerVisible(state.labelsLayer, state.labelsEnabled);
+    console.log("Labels source:", labels.url);
+  }
 
+  const boundaries = addOverlayWithFallback("boundaries");
+  if (boundaries?.layer) {
+    state.boundariesLayer = boundaries.layer;
     state.boundariesLayer.brightness = 1.0;
     state.boundariesLayer.contrast = 1.2;
-    state.boundariesLayer.gamma = 1.0;
-
-    setLayerVisibility(state.labelsLayer, state.labelsEnabled);
-    setLayerVisibility(state.boundariesLayer, state.boundariesEnabled);
-  } catch (e) {
-    console.warn("Overlay layer init failed:", e);
+    setLayerVisible(state.boundariesLayer, state.boundariesEnabled);
+    console.log("Boundaries source:", boundaries.url);
   }
 }
 
 function toggleLabels() {
   state.labelsEnabled = !state.labelsEnabled;
-  setLayerVisibility(state.labelsLayer, state.labelsEnabled);
+  setLayerVisible(state.labelsLayer, state.labelsEnabled);
   updateOverlayButtonLabels();
 }
 
 function toggleBoundaries() {
   state.boundariesEnabled = !state.boundariesEnabled;
-  setLayerVisibility(state.boundariesLayer, state.boundariesEnabled);
+  setLayerVisible(state.boundariesLayer, state.boundariesEnabled);
   updateOverlayButtonLabels();
 }
 
-function preloadPlaneIcon() {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.onload = () => {
-      state.planeIconReady = true;
-      resolve(true);
-    };
-    img.onerror = () => {
-      state.planeIconReady = false;
-      console.error("plane icon failed:", PLANE_ICON);
-      resolve(false);
-    };
-    img.src = `${PLANE_ICON}?v=${Date.now()}`;
-  });
-}
-
+// ---------------------------
+// Cesium init (globe first)
+// ---------------------------
 function initCesium() {
   if (!window.Cesium) throw new Error("Cesium not loaded");
 
@@ -237,7 +262,8 @@ function initCesium() {
       infoBox: false,
       terrain: Cesium.Terrain.fromWorldTerrain()
     });
-  } catch {
+  } catch (e) {
+    console.warn("Terrain init failed, using fallback viewer:", e);
     state.viewer = new Cesium.Viewer("cesiumContainer", {
       animation: false,
       timeline: false,
@@ -267,6 +293,8 @@ function initCesium() {
 async function loadSessions() {
   setStatus("Loading sessions...");
   const sessions = await apiGet("/sessions");
+  if (!els.serverSelect) return;
+
   els.serverSelect.innerHTML = `<option value="">Select server</option>`;
   sessions.forEach((s) => {
     const opt = document.createElement("option");
@@ -314,7 +342,7 @@ function createAircraftEntity(f, pos, sampled) {
     polyline: {
       positions: [pos],
       width: 2,
-      material: Cesium.Color.fromCssColorString("#7ec8ff").withAlpha(0.35)
+      material: Cesium.Color.fromCssColorString("#7ec8ff").withAlpha(0.3)
     }
   });
 }
@@ -362,8 +390,8 @@ function updateSelectedStyles() {
     rec.entity.billboard.color = selected ? Cesium.Color.fromCssColorString("#34f5c5") : Cesium.Color.WHITE;
     rec.entity.polyline.width = selected ? 3 : 2;
     rec.entity.polyline.material = selected
-      ? Cesium.Color.fromCssColorString("#34f5c5").withAlpha(0.9)
-      : Cesium.Color.fromCssColorString("#7ec8ff").withAlpha(0.35);
+      ? Cesium.Color.fromCssColorString("#34f5c5").withAlpha(0.85)
+      : Cesium.Color.fromCssColorString("#7ec8ff").withAlpha(0.3);
   }
 }
 
@@ -497,6 +525,7 @@ function clearAircraft() {
   state.aircraft.clear();
   state.selectedFlightId = null;
   state.viewer.trackedEntity = undefined;
+
   if (els.drawer) els.drawer.style.display = "none";
   if (els.selectedStrip) els.selectedStrip.style.display = "none";
   updateHud(null);
@@ -506,9 +535,10 @@ function connect() {
   state.apiKey = (DEFAULT_API_KEY || "").trim();
   if (!state.apiKey) return setStatus("Missing API key in app.js", true);
 
-  state.sessionId = els.serverSelect.value;
-  const selected = els.serverSelect.options[els.serverSelect.selectedIndex];
+  state.sessionId = els.serverSelect?.value || "";
+  const selected = els.serverSelect?.options?.[els.serverSelect.selectedIndex];
   state.sessionName = selected?.dataset?.serverName || selected?.textContent || "";
+
   if (!state.sessionId) return setStatus("Please select a server", true);
 
   clearAircraft();
@@ -532,7 +562,10 @@ function setupTabs() {
 
 function setupEvents() {
   els.connectBtn?.addEventListener("click", connect);
-  els.refreshBtn?.addEventListener("click", loadSessions);
+  els.refreshBtn?.addEventListener("click", () => {
+    loadSessions().catch((e) => setStatus(`Refresh error: ${e.message}`, true));
+  });
+
   els.ifeModeBtn?.addEventListener("click", () => setMode("ife"));
   els.radarModeBtn?.addEventListener("click", () => setMode("radar"));
 
@@ -557,15 +590,26 @@ function setupEvents() {
   if (els.title) els.title.textContent = APP_NAME;
 
   try {
-    ensureTopbarButtons();
-    await preloadPlaneIcon();
+    // 1) show globe first
     initCesium();
+    setStatus("Globe ready. Loading data...");
+
+    // 2) immediately usable controls
+    ensureOverlayButtons();
     setupTabs();
-    updateOverlayButtonLabels();
     setupEvents();
     setMode("ife");
-    await loadSessions();
-    setStatus("Ready. Select server and connect.");
+    if (els.selectedStrip) els.selectedStrip.style.display = "none";
+    if (els.drawer) els.drawer.style.display = "none";
+
+    // 3) async background tasks with fallbacks
+    preloadPlaneIcon().then((ok) => {
+      setStatus(ok ? "Plane icon ready" : "Plane icon fallback mode");
+    });
+
+    loadSessions()
+      .then(() => setStatus("Ready. Select server and connect."))
+      .catch((e) => setStatus(`Session load failed: ${e.message}`, true));
   } catch (e) {
     console.error(e);
     setStatus(`Startup error: ${e.message}`, true);
