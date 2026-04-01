@@ -13,7 +13,6 @@
   <div id="app">
     <main id="cesiumContainer"></main>
 
-    <!-- Left control panel -->
     <aside class="control-shell glass" id="controlShell">
       <div class="brand">
         <div class="brand-badge">✈</div>
@@ -52,7 +51,6 @@
       <div id="status" class="status">Initializing…</div>
     </aside>
 
-    <!-- Top bar -->
     <header class="topbar glass">
       <div>
         <strong id="topMode">IFE Mode</strong>
@@ -66,40 +64,88 @@
     </header>
 
     <!-- Right drawer -->
-    <section id="flightDrawer" class="drawer glass">
+    <section id="flightDrawer" class="drawer glass" style="display:none;">
+      <div class="drawer-head">
+        <div>
+          <h3 id="fiCallsign">-</h3>
+          <p id="fiUser">-</p>
+        </div>
+      </div>
+
       <div class="drawer-tabs">
-        <button id="tabFlightInfo" class="tab active">Flight Info</button>
-        <button id="tabGlass" class="tab">Glass Cockpit</button>
+        <button id="tabFlightInfo" class="tab active">FLIGHT INFO</button>
+        <button id="tabGlass" class="tab">GLASS COCKPIT</button>
       </div>
 
       <div id="panelFlightInfo" class="drawer-panel">
-        <div class="kv"><span>Callsign</span><strong id="fiCallsign">-</strong></div>
-        <div class="kv"><span>Pilot</span><strong id="fiUser">-</strong></div>
-        <div class="kv-row">
-          <div class="kv"><span>Altitude</span><strong id="fiAlt">-</strong></div>
-          <div class="kv"><span>Speed</span><strong id="fiSpd">-</strong></div>
+        <div class="stats-row">
+          <div class="stat"><span>SPEED (GS)</span><strong id="fiSpd">-</strong></div>
+          <div class="stat"><span>ALTITUDE</span><strong id="fiAlt">-</strong></div>
+          <div class="stat"><span>HEADING</span><strong id="fiHdg">-</strong></div>
+          <div class="stat"><span>VERT. SPEED</span><strong id="fiVs">-</strong></div>
         </div>
-        <div class="kv-row">
-          <div class="kv"><span>Heading</span><strong id="fiHdg">-</strong></div>
-          <div class="kv"><span>Vertical Speed</span><strong id="fiVs">-</strong></div>
-        </div>
-        <div class="kv-row">
-          <div class="kv"><span>Latitude</span><strong id="fiLat">-</strong></div>
-          <div class="kv"><span>Longitude</span><strong id="fiLon">-</strong></div>
+        <div class="coords-row">
+          <div class="stat"><span>LAT</span><strong id="fiLat">-</strong></div>
+          <div class="stat"><span>LON</span><strong id="fiLon">-</strong></div>
         </div>
       </div>
 
       <div id="panelGlass" class="drawer-panel" style="display:none;">
         <div class="glass-grid">
-          <div class="mock-gauge">PFD</div>
-          <div class="mock-gauge">ND</div>
-          <div class="mock-gauge">ENG</div>
-          <div class="mock-gauge">F-PLAN</div>
+          <div class="instrument pfd">
+            <div class="instr-title">PFD</div>
+            <div class="pfd-face">
+              <div class="sky"></div>
+              <div class="ground"></div>
+              <div class="horizon-line"></div>
+              <div class="crosshair"></div>
+              <div class="pfd-speed" id="gcSpeedTape">GS 0</div>
+              <div class="pfd-alt" id="gcAltTape">ALT 0</div>
+            </div>
+          </div>
+
+          <div class="instrument nd">
+            <div class="instr-title">ND</div>
+            <div class="nd-face">
+              <div class="ring r1"></div>
+              <div class="ring r2"></div>
+              <div class="ring r3"></div>
+              <div class="ring r4"></div>
+              <div class="needle" id="gcNeedle"></div>
+              <div class="nd-center">▲</div>
+              <div class="nd-readout" id="gcNDR">HDG 000</div>
+            </div>
+          </div>
+
+          <div class="instrument eng">
+            <div class="instr-title">ENG</div>
+            <div class="eng-wrap">
+              <div class="eng-gauge">
+                <span>L N1</span>
+                <strong id="gcN1L">00.0</strong>
+              </div>
+              <div class="eng-gauge">
+                <span>R N1</span>
+                <strong id="gcN1R">00.0</strong>
+              </div>
+            </div>
+            <div class="eng-bars">
+              <div class="bar"><i id="gcEgtL"></i></div>
+              <div class="bar"><i id="gcEgtR"></i></div>
+            </div>
+          </div>
+
+          <div class="instrument fpln">
+            <div class="instr-title">F-PLAN</div>
+            <div class="fpln-list" id="gcFpln">
+              <div>RTE UNAVAILABLE</div>
+              <div>USING LIVE POSITION</div>
+            </div>
+          </div>
         </div>
       </div>
     </section>
 
-    <!-- Bottom selected flight strip -->
     <section id="selectedStrip" class="selected-strip glass" style="display:none;">
       <div class="strip-left">
         <div class="plane-badge">✈</div>
@@ -116,7 +162,6 @@
       </div>
     </section>
 
-    <!-- Compact HUD -->
     <section class="hud glass">
       <h3>Cockpit HUD</h3>
       <div class="hud-grid">
