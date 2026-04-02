@@ -19,12 +19,8 @@ const state = {
   aircraft: new Map(),
   selectedFlightId: null,
   followSelected: false,
-
   labelsEnabled: true,
-  boundariesEnabled: true,
-
-  // current imagery handles
-  currentBaseLayer: null
+  boundariesEnabled: true
 };
 
 const els = {
@@ -139,20 +135,17 @@ function updateStyleButtonLabels() {
 }
 
 async function applyScreenshotLikeGlobeStyle() {
-  // style from your screenshot: satellite + labels
   const style = state.labelsEnabled
     ? Cesium.IonWorldImageryStyle.AERIAL_WITH_LABELS
     : Cesium.IonWorldImageryStyle.AERIAL;
 
-  const baseLayer = await Cesium.ImageryLayer.fromProviderAsync(
+  const layer = await Cesium.ImageryLayer.fromProviderAsync(
     Cesium.createWorldImageryAsync({ style })
   );
 
   state.viewer.imageryLayers.removeAll();
-  state.viewer.imageryLayers.add(baseLayer);
-  state.currentBaseLayer = baseLayer;
+  state.viewer.imageryLayers.add(layer);
 
-  // boundary-ish visual tuning
   state.viewer.scene.globe.showGroundAtmosphere = !!state.boundariesEnabled;
   state.viewer.scene.globe.enableLighting = true;
   state.viewer.scene.skyAtmosphere.show = true;
@@ -198,8 +191,7 @@ function initCesium() {
       infoBox: false,
       terrain: Cesium.Terrain.fromWorldTerrain()
     });
-  } catch (e) {
-    console.warn("Terrain failed, fallback viewer:", e);
+  } catch {
     state.viewer = new Cesium.Viewer("cesiumContainer", {
       animation: false,
       timeline: false,
@@ -254,19 +246,23 @@ function createAircraftEntity(f, pos, sampled) {
     id: f.flightId,
     position: sampled,
     billboard: {
-      image: PLANE_ICON,
+      image: new Cesium.ConstantProperty(PLANE_ICON),
       show: true,
       width: 36,
       height: 36,
       color: Cesium.Color.WHITE,
       rotation: Cesium.Math.toRadians((f.heading || 0) - 90),
-      alignedAxis: Cesium.Cartesian3.ZERO,
+      alignedAxis: Cesium.Cartesian3.UNIT_Z,
       verticalOrigin: Cesium.VerticalOrigin.CENTER,
       horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
       disableDepthTestDistance: Number.POSITIVE_INFINITY
     },
+    // debug-safe fallback dot always on (small)
     point: {
-      show: false
+      show: true,
+      pixelSize: 2,
+      color: Cesium.Color.YELLOW,
+      disableDepthTestDistance: Number.POSITIVE_INFINITY
     },
     polyline: {
       positions: [pos],
@@ -519,14 +515,12 @@ function setupEvents() {
   if (els.title) els.title.textContent = APP_NAME;
 
   try {
-    // 1) Globe first
+    console.log("Plane icon URL:", PLANE_ICON);
     initCesium();
     setStatus("Globe ready. Applying map style...");
 
-    // 2) map style from screenshot
     await applyScreenshotLikeGlobeStyle();
 
-    // 3) immediate UI
     ensureStyleButtons();
     updateStyleButtonLabels();
     setupTabs();
@@ -536,7 +530,6 @@ function setupEvents() {
     if (els.selectedStrip) els.selectedStrip.style.display = "none";
     if (els.drawer) els.drawer.style.display = "none";
 
-    // 4) background loads
     loadSessions()
       .then(() => setStatus("Ready. Select server and connect."))
       .catch((e) => setStatus(`Session load failed: ${e.message}`, true));
