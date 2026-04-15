@@ -1,19 +1,16 @@
 const APP_NAME = "Infinite Tracker";
-
 const DEFAULT_API_KEY = "tyy8znhl0u5kbbb2vuvdhfetmsil041u";
 const CESIUM_ION_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI3MDU4NWI1YS03ZGUxLTRmMzEtODEwZi01MDNlM2QyMTg5MzAiLCJpZCI6NDExNTkzLCJpYXQiOjE3NzQ5MjgxNjh9.NeKegq8BpQ4KqIs2hJWNgoEy2c0vidgNg869ldUVFew";
 const API_BASE = "https://api.infiniteflight.com/public/v2";
-
 const POLL_MS = 5000;
 const TRAIL_LENGTH = 120;
 const PLANE_ICON = "https://infinite-tracker.tech/plane.svg";
-const USE_VECTOR_ICON_PRIMARY = false; // use hosted svg directly
 
 // Keep true for guaranteed visibility while validating billboard behavior
 const DEBUG_FORCE_POINTS = true;
 
-// Use vector transparent icon as primary to avoid opaque PNG/background issues
-const USE_VECTOR_ICON_PRIMARY = true;
+// Single definition only (do NOT duplicate)
+const USE_VECTOR_ICON_PRIMARY = false; // false = hosted plane.svg, true = generated vector
 
 const state = {
   apiKey: DEFAULT_API_KEY,
@@ -268,7 +265,9 @@ function setMode(mode) {
 }
 
 function createAircraftEntity(f, pos, sampled) {
-  const imageSource = USE_VECTOR_ICON_PRIMARY ? state.vectorPlaneIcon : PLANE_ICON;
+  const imageSource = (USE_VECTOR_ICON_PRIMARY && state.vectorPlaneIcon)
+    ? state.vectorPlaneIcon
+    : PLANE_ICON;
 
   return state.viewer.entities.add({
     id: f.flightId,
@@ -392,7 +391,11 @@ function openRandomAircraft() {
   if (!f) return;
 
   state.viewer.camera.flyTo({
-    destination: Cesium.Cartesian3.fromDegrees(f.longitude, f.latitude, Math.max(120000, (f.altitude || 0) * 0.3048 + 100000)),
+    destination: Cesium.Cartesian3.fromDegrees(
+      f.longitude,
+      f.latitude,
+      Math.max(120000, (f.altitude || 0) * 0.3048 + 100000)
+    ),
     duration: 1.6
   });
 
@@ -605,7 +608,7 @@ function setupEvents() {
   if (els.title) els.title.textContent = APP_NAME;
 
   try {
-    console.log("Plane PNG URL:", PLANE_ICON);
+    console.log("Plane icon URL:", PLANE_ICON);
     state.vectorPlaneIcon = makePlaneIconDataUrl("#ffffff");
 
     // 1) globe first
