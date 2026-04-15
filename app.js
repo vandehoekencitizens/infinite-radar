@@ -1,13 +1,15 @@
-
 const APP_NAME = "Infinite Tracker";
 
 const DEFAULT_API_KEY = "tyy8znhl0u5kbbb2vuvdhfetmsil041u";
 const CESIUM_ION_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI3MDU4NWI1YS03ZGUxLTRmMzEtODEwZi01MDNlM2QyMTg5MzAiLCJpZCI6NDExNTkzLCJpYXQiOjE3NzQ5MjgxNjh9.NeKegq8BpQ4KqIs2hJWNgoEy2c0vidgNg869ldUVFew";
 const API_BASE = "https://api.infiniteflight.com/public/v2";
 
+
 const POLL_MS = 5000;
-const TRAIL_LENGTH = 100;
-const PLANE_ICON = "https://infinite-tracker.tech/plane.png";
+const TRAIL_LENGTH = 120;
+
+// optional fallback (not primary)
+const PLANE_ICON_FALLBACK = "https://infinite-tracker.tech/plane.png";
 
 const state = {
   apiKey: DEFAULT_API_KEY,
@@ -16,11 +18,15 @@ const state = {
   mode: "ife",
   polling: null,
   viewer: null,
-  aircraft: new Map(),
+  aircraft: new Map(), // flightId -> { entity, sampled, trailPositions, last }
   selectedFlightId: null,
   followSelected: false,
+
   labelsEnabled: true,
-  boundariesEnabled: true
+  boundariesEnabled: true,
+  currentBaseLayer: null,
+
+  vectorPlaneIcon: null
 };
 
 const els = {
@@ -103,6 +109,16 @@ async function apiGet(path) {
   return json.result;
 }
 
+function makePlaneIconDataUrl(color = "#ffffff") {
+  const svg = `
+<svg xmlns="http://www.w3.org/2000/svg" width="72" height="72" viewBox="0 0 72 72">
+  <g fill="${color}" stroke="#0b0f18" stroke-width="2.2" stroke-linejoin="round">
+    <path d="M34 4h4l4 21 18 9v5l-20-3-2 10 7 6v4l-9-3-9 3v-4l7-6-2-10-20 3v-5l18-9z"/>
+  </g>
+</svg>`;
+  return "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(svg);
+}
+
 function ensureStyleButtons() {
   const topActions = document.querySelector(".top-actions");
   if (!topActions) return;
@@ -139,12 +155,13 @@ async function applyScreenshotLikeGlobeStyle() {
     ? Cesium.IonWorldImageryStyle.AERIAL_WITH_LABELS
     : Cesium.IonWorldImageryStyle.AERIAL;
 
-  const layer = await Cesium.ImageryLayer.fromProviderAsync(
+  const baseLayer = await Cesium.ImageryLayer.fromProviderAsync(
     Cesium.createWorldImageryAsync({ style })
   );
 
   state.viewer.imageryLayers.removeAll();
-  state.viewer.imageryLayers.add(layer);
+  state.viewer.imageryLayers.add(baseLayer);
+  state.currentBaseLayer = baseLayer;
 
   state.viewer.scene.globe.showGroundAtmosphere = !!state.boundariesEnabled;
   state.viewer.scene.globe.enableLighting = true;
@@ -191,7 +208,8 @@ function initCesium() {
       infoBox: false,
       terrain: Cesium.Terrain.fromWorldTerrain()
     });
-  } catch {
+  } catch (e) {
+    console.warn("Terrain init fallback:", e);
     state.viewer = new Cesium.Viewer("cesiumContainer", {
       animation: false,
       timeline: false,
@@ -209,7 +227,9 @@ function initCesium() {
 
   state.viewer.screenSpaceEventHandler.setInputAction((click) => {
     const picked = state.viewer.scene.pick(click.position);
-    if (picked?.id?.id && state.aircraft.has(picked.id.id)) selectFlight(picked.id.id);
+    if (picked?.id?.id && state.aircraft.has(picked.id.id)) {
+      selectFlight(picked.id.id);
+    }
   }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
 
   window.__IT_VIEWER__ = state.viewer;
@@ -246,10 +266,10 @@ function createAircraftEntity(f, pos, sampled) {
     id: f.flightId,
     position: sampled,
     billboard: {
-      image: new Cesium.ConstantProperty(PLANE_ICON),
+      image: state.vectorPlaneIcon || new Cesium.ConstantProperty(PLANE_ICON_FALLBACK),
       show: true,
-      width: 36,
-      height: 36,
+      width: 30,
+      height: 30,
       color: Cesium.Color.WHITE,
       rotation: Cesium.Math.toRadians((f.heading || 0) - 90),
       alignedAxis: Cesium.Cartesian3.UNIT_Z,
@@ -257,12 +277,8 @@ function createAircraftEntity(f, pos, sampled) {
       horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
       disableDepthTestDistance: Number.POSITIVE_INFINITY
     },
-    // debug-safe fallback dot always on (small)
     point: {
-      show: true,
-      pixelSize: 2,
-      color: Cesium.Color.YELLOW,
-      disableDepthTestDistance: Number.POSITIVE_INFINITY
+      show: false
     },
     polyline: {
       positions: [pos],
@@ -313,10 +329,12 @@ function updateSelectedStyles() {
   for (const [id, rec] of state.aircraft.entries()) {
     const selected = id === state.selectedFlightId;
     rec.entity.billboard.scale = selected ? 1.25 : 1.0;
-    rec.entity.billboard.color = Cesium.Color.WHITE;
+    rec.entity.billboard.color = selected
+      ? Cesium.Color.fromCssColorString("#34f5c5")
+      : Cesium.Color.WHITE;
     rec.entity.polyline.width = selected ? 3 : 2;
     rec.entity.polyline.material = selected
-      ? Cesium.Color.fromCssColorString("#34f5c5").withAlpha(0.85)
+      ? Cesium.Color.fromCssColorString("#34f5c5").withAlpha(0.88)
       : Cesium.Color.fromCssColorString("#7ec8ff").withAlpha(0.3);
   }
 }
@@ -344,31 +362,41 @@ function updateHud(f) {
 }
 
 function updateGlassCockpit(f) {
-  if (!f || !els.gcNeedle) return;
+  if (!f) return;
+
   const gs = Math.round(f.speed || 0);
   const alt = Math.round(f.altitude || 0);
   const hdg = Math.round(f.heading || 0);
   const vs = Math.round(f.verticalSpeed || 0);
 
+  // PFD tape values
   if (els.gcSpeedTape) els.gcSpeedTape.textContent = `GS ${gs}`;
   if (els.gcAltTape) els.gcAltTape.textContent = `ALT ${alt}`;
-  if (els.gcNDR) els.gcNDR.textContent = `HDG ${String(hdg).padStart(3, "0")}`;
-  els.gcNeedle.style.transform = `translate(-50%, -100%) rotate(${hdg}deg)`;
 
-  const n1 = Math.max(25, Math.min(105, gs / 5 + 20));
+  // ND heading rose needle
+  if (els.gcNDR) els.gcNDR.textContent = `HDG ${String(hdg).padStart(3, "0")}`;
+  if (els.gcNeedle) els.gcNeedle.style.transform = `translate(-50%, -100%) rotate(${hdg}deg)`;
+
+  // Engine approximation
+  const n1 = Math.max(22, Math.min(106, gs / 5 + 20));
   if (els.gcN1L) els.gcN1L.textContent = n1.toFixed(1);
   if (els.gcN1R) els.gcN1R.textContent = n1.toFixed(1);
 
-  const egtPct = Math.max(20, Math.min(95, Math.abs(vs) / 40 + 35));
+  const egtPct = Math.max(18, Math.min(95, Math.abs(vs) / 40 + 35));
   if (els.gcEgtL) els.gcEgtL.style.height = `${egtPct}%`;
   if (els.gcEgtR) els.gcEgtR.style.height = `${egtPct}%`;
 
+  // FPLN pane
   if (els.gcFpln) {
+    const lat = Number(f.latitude || 0).toFixed(3);
+    const lon = Number(f.longitude || 0).toFixed(3);
     els.gcFpln.innerHTML = `
-      <div>POS ${Number(f.latitude || 0).toFixed(3)}, ${Number(f.longitude || 0).toFixed(3)}</div>
+      <div>ACTIVE FLIGHT</div>
+      <div>CALLSIGN ${f.callsign || "-"}</div>
+      <div>POS ${lat}, ${lon}</div>
       <div>HDG ${hdg} • GS ${gs} • ALT ${alt}</div>
       <div>V/S ${vs} fpm</div>
-      <div>LIVE TRACK STREAM</div>
+      <div>DATA LIVE FROM SESSION ${state.sessionName || "-"}</div>
     `;
   }
 }
@@ -451,6 +479,7 @@ function clearAircraft() {
   state.aircraft.clear();
   state.selectedFlightId = null;
   state.viewer.trackedEntity = undefined;
+
   if (els.drawer) els.drawer.style.display = "none";
   if (els.selectedStrip) els.selectedStrip.style.display = "none";
   updateHud(null);
@@ -515,12 +544,16 @@ function setupEvents() {
   if (els.title) els.title.textContent = APP_NAME;
 
   try {
-    console.log("Plane icon URL:", PLANE_ICON);
+    state.vectorPlaneIcon = makePlaneIconDataUrl("#ffffff");
+
+    // 1) globe first
     initCesium();
     setStatus("Globe ready. Applying map style...");
 
+    // 2) screenshot-like globe style
     await applyScreenshotLikeGlobeStyle();
 
+    // 3) immediate UI
     ensureStyleButtons();
     updateStyleButtonLabels();
     setupTabs();
@@ -530,6 +563,7 @@ function setupEvents() {
     if (els.selectedStrip) els.selectedStrip.style.display = "none";
     if (els.drawer) els.drawer.style.display = "none";
 
+    // 4) data load
     loadSessions()
       .then(() => setStatus("Ready. Select server and connect."))
       .catch((e) => setStatus(`Session load failed: ${e.message}`, true));
