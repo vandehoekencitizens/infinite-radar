@@ -1,87 +1,375 @@
-:root{
-  --card:rgba(9,16,33,.78);--line:rgba(115,170,255,.24);--text:#e7efff;--muted:#90a2c5;
-  --accent:#17dcb2;--accent2:#35c1ff;--warn:#ffd079;
+/* ==========================================================================
+   Infinite Tracker - Ultimate Edition CSS
+   ========================================================================== */
+
+/* --- VARIABLES & RESET --- */
+:root {
+  --bg-dark: #070e1e;
+  --bg-panel: rgba(11, 15, 24, 0.85);
+  --bg-panel-solid: #0b0f18;
+  --accent-cyan: #40e0ff;
+  --accent-green: #17dcb2;
+  --text-main: #ffffff;
+  --text-muted: #9eb5df;
+  --border-color: rgba(76, 122, 198, 0.3);
+  --danger: #ff5e5e;
 }
-*{box-sizing:border-box}
-html,body,#app,#cesiumContainer{margin:0;width:100%;height:100%;overflow:hidden;font-family:Inter,system-ui,Arial;color:var(--text)}
-#cesiumContainer{position:fixed;inset:0;z-index:1}
-.glass{backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);background:var(--card);border:1px solid var(--line);box-shadow:0 12px 30px rgba(0,0,0,.38)}
-.hidden{display:none!important}.mt8{margin-top:8px}
-.control-shell{position:fixed;top:16px;left:16px;z-index:20;width:360px;max-width:calc(100vw - 32px);border-radius:18px;padding:16px;transition:.25s}
-.control-shell.hidden{transform:translateX(-115%);opacity:0;pointer-events:none}
-.brand{display:flex;gap:12px;align-items:center;margin-bottom:14px}
-.brand-badge{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;background:linear-gradient(135deg,#58b5ff,#8b92ff);color:#021023;font-weight:900}
-.brand h1{margin:0;font-size:1.6rem;line-height:1}.brand p{margin:3px 0 0;color:var(--muted)}
-.section{margin-bottom:12px}label{display:block;margin-bottom:6px;color:#c6d7f7;font-size:.88rem}
-select,button{width:100%;border:1px solid rgba(124,168,255,.3);border-radius:12px;background:rgba(10,18,35,.88);color:var(--text);padding:10px 12px;font-size:.95rem;cursor:pointer}
-.mode-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.mode-card{min-height:78px;text-align:left}
-.mode-title{font-weight:700;display:block}.mode-sub{color:var(--muted);font-size:.82rem;display:block;margin-top:2px}
-.mode-card.active{border-color:var(--accent2);box-shadow:0 0 0 2px rgba(89,183,255,.18)}
-.action-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
-.primary{background:linear-gradient(135deg,#58b5ff,#8b92ff);color:#081024;border:none;font-weight:700}
-.primary.big{padding:16px 20px;font-size:1.3rem;border-radius:999px}
-.status{margin-top:12px;color:var(--warn);font-size:.9rem}
-.topbar{position:fixed;z-index:18;top:16px;left:392px;right:16px;height:54px;border-radius:14px;display:flex;align-items:center;justify-content:space-between;padding:0 14px}
-.muted{color:var(--muted);margin:0 8px}.top-actions{display:flex;gap:8px}.top-actions button{width:auto;padding:8px 12px}
-#followBtn.active{border-color:var(--accent);color:var(--accent)}
-.drawer{position:fixed;z-index:18;right:16px;top:84px;width:min(980px,calc(100vw - 32px));border-radius:16px;padding:12px}
-.drawer-head{display:flex;align-items:center;justify-content:space-between}
-.drawer-ident{display:flex;align-items:center;gap:10px}.aircraft-avatar{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;background:rgba(53,193,255,.18);border:1px solid rgba(53,193,255,.4)}
-.drawer-icons{display:flex;gap:8px}.drawer-icons button{width:auto;padding:8px 10px}
-.drawer-head h3{margin:0;font-size:2rem;line-height:1}.drawer-head p{margin:4px 0 10px;color:#63d8ff}
-.drawer-tabs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}.tab.active{border-color:var(--accent2);background:rgba(53,193,255,.18)}
-.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:10px}.coords-row{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
-.stat{border:1px solid rgba(128,166,255,.2);border-radius:10px;background:rgba(6,11,22,.75);padding:10px}
-.stat span{display:block;font-size:.72rem;color:var(--muted)}.stat strong{display:block;margin-top:4px;font-size:1.1rem}
-.glass-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.instrument{border:1px solid rgba(128,166,255,.2);border-radius:10px;background:rgba(5,10,20,.86);padding:8px}
-.instr-title{font-size:.72rem;color:#79dcff;margin-bottom:6px;letter-spacing:.6px}
-.pfd-face{position:relative;height:220px;border-radius:8px;overflow:hidden;background:#0a1426;border:1px solid rgba(120,170,255,.18)}
-.sky{position:absolute;left:0;right:0;top:0;height:50%;background:#2a9ae2}.ground{position:absolute;left:0;right:0;bottom:0;height:50%;background:#8b4e20}
-.horizon-line{position:absolute;left:0;right:0;top:50%;height:2px;background:#fff;opacity:.8}
-.pitch-ladder{position:absolute;inset:0;background:repeating-linear-gradient(to bottom,transparent 0 18px,rgba(255,255,255,.12) 18px 20px)}
-.crosshair{position:absolute;top:50%;left:50%;width:80px;height:24px;transform:translate(-50%,-50%);border-top:3px solid #ffd400;border-left:3px solid #ffd400;border-right:3px solid #ffd400}
-.pfd-speed,.pfd-alt{position:absolute;top:8px;padding:4px 8px;border-radius:6px;background:#000;color:#6eff90;font-weight:700;font-size:.82rem}
-.pfd-speed{left:8px}.pfd-alt{right:8px;color:#65f0ff}
-.nd-face{position:relative;height:220px;border-radius:8px;overflow:hidden;background:#05070d;border:1px solid rgba(120,170,255,.18)}
-.ring{position:absolute;border:1px solid rgba(255,255,255,.25);border-radius:50%;left:50%;top:50%;transform:translate(-50%,-50%)}
-.r1{width:190px;height:190px}.r2{width:145px;height:145px}.r3{width:100px;height:100px}.r4{width:55px;height:55px}
-.needle{position:absolute;left:50%;top:50%;width:2px;height:88px;background:#db4dff;transform-origin:bottom center;transform:translate(-50%,-100%) rotate(0deg)}
-.nd-center{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-size:1.2rem}
-.nd-readout{position:absolute;left:8px;top:8px;color:#6eff90;font-weight:700;font-size:.82rem;background:#000;padding:4px 8px;border-radius:6px}
-.eng-wrap{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}.eng-gauge{border:1px solid rgba(120,170,255,.18);border-radius:8px;background:#03060c;height:90px;display:grid;place-items:center}
-.eng-gauge span{color:var(--muted);font-size:.72rem}.eng-gauge strong{color:#35e6c8;font-size:1.6rem}
-.eng-bars{display:grid;grid-template-columns:1fr 1fr;gap:8px}.bar{height:70px;border:1px solid rgba(120,170,255,.18);border-radius:6px;padding:4px;background:#020409}
-.bar i{display:block;width:100%;height:40%;margin-top:auto;background:#ffb300;border-radius:4px}
-.fpln-list{height:170px;border:1px solid rgba(120,170,255,.18);border-radius:8px;background:#03060d;padding:8px;color:#7fffd4;font-family:ui-monospace,Menlo,monospace;font-size:.85rem;overflow:auto}
-.selected-strip{position:fixed;z-index:18;left:50%;transform:translateX(-50%);bottom:16px;width:min(980px,calc(100vw - 24px));border-radius:18px;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;gap:18px}
-.strip-left{display:flex;gap:12px;align-items:center;min-width:270px}.plane-badge{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;border:1px solid rgba(56,233,193,.4);color:#39e9c1;background:rgba(5,24,23,.6)}
-.strip-left h3{margin:0;font-size:1.8rem;line-height:1}.strip-left p{margin:4px 0 2px;color:#63d8ff}.strip-left small{color:var(--muted)}
-.strip-metrics{margin-left:auto;display:grid;grid-template-columns:repeat(3,minmax(90px,1fr));gap:10px}
-.strip-metrics div{padding:8px 10px;border-radius:10px;background:rgba(6,12,24,.75);border:1px solid rgba(125,170,255,.18)}
-.strip-metrics span{display:block;font-size:.78rem;color:var(--muted)}.strip-metrics strong{font-size:1.1rem}
-.hud{position:fixed;z-index:17;right:16px;bottom:120px;width:290px;border-radius:16px;padding:12px}
-.hud h3{margin:0 0 10px;font-size:.95rem}.hud-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.hud-grid div{border:1px solid rgba(128,166,255,.15);background:rgba(6,11,22,.8);border-radius:10px;padding:10px}
-.hud-grid span{display:block;font-size:.75rem;color:var(--muted)}
-.ife-overlay{position:fixed;inset:0;z-index:30;pointer-events:none}.ife-overlay>*{pointer-events:auto}
-.ife-welcome{position:absolute;inset:0;display:flex;align-items:center;justify-content:space-between;padding:80px;background:linear-gradient(90deg,rgba(0,0,0,.88),rgba(0,0,0,.35))}
-.welcome-left p{letter-spacing:.35em;color:#b6d1ff}.welcome-left h2{font-size:3rem;color:#0ebac9;margin:.2rem 0}.welcome-left h1{font-size:5rem;line-height:.95;margin:.4rem 0 1.2rem}
-.globe-orbit{position:relative;width:420px;height:420px;border-radius:50%;box-shadow:0 0 0 2px rgba(53,193,255,.2),0 0 60px rgba(53,193,255,.35) inset}
-.orb{position:absolute;inset:18px;border-radius:50%;background:radial-gradient(circle at 30% 30%,#1b84ff,#020814 70%)}
-.route-arc{position:absolute;left:34px;top:140px;width:350px;height:130px;border-top:4px solid rgba(255,255,255,.5);border-radius:70%/100%}
-.plane-dot{position:absolute;left:300px;top:120px;animation:orbitplane 6s linear infinite}
-@keyframes orbitplane{0%{transform:translateX(0)}50%{transform:translateX(-180px) translateY(35px)}100%{transform:translateX(-320px) translateY(55px)}}
-.ife-panel{position:absolute;left:50%;top:52%;transform:translate(-50%,-50%);width:min(1100px,94vw);border-radius:22px;background:rgba(7,14,30,.96);border:1px solid rgba(76,122,198,.32);padding:14px}
-.ife-head{display:flex;justify-content:space-between;align-items:center;padding:8px 4px}.ife-head h2{margin:0;font-size:2rem}.ife-head p{margin:2px 0 0;color:#63d8ff}
-.ife-head-actions{display:flex;gap:8px}.ife-head-actions button{width:auto;padding:8px 10px}
-.ife-tabs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0 12px}.ife-tabs button.active{background:#15a8cf;color:#03121d;border:none}
-.ife-view{min-height:460px}.progress-card{display:grid;grid-template-columns:1fr 3fr 1fr;align-items:center;gap:12px;padding:12px;border:1px solid rgba(120,170,255,.2);background:rgba(10,18,36,.85);border-radius:12px;margin-bottom:10px}
-.progress-card .line{height:8px;border-radius:999px;background:linear-gradient(90deg,#0de6c6,#4da1ff)}.progress-card small{display:block;color:#9eb5df}.progress-card strong{font-size:2rem;color:#19e6c0}
-.route-card{border:1px solid rgba(120,170,255,.2);background:rgba(10,18,36,.85);border-radius:12px;padding:12px;color:#bcd2ff;min-height:120px}
-.config-bar{display:flex;justify-content:center;padding-top:10px}.config-bar button{width:auto;padding:10px 18px}
-.mode-ife #hudCard{display:none}.mode-radar #ifeOverlay{display:none}
-@media (max-width:980px){
-  .topbar{left:16px;right:16px}.hud{display:none}.stats-row{grid-template-columns:1fr 1fr}
-  .glass-grid{grid-template-columns:1fr}.ife-welcome{padding:28px}.welcome-left h1{font-size:3rem}.welcome-right{display:none}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+  background-color: var(--bg-dark);
+  color: var(--text-main);
+  overflow: hidden;
+  width: 100vw;
+  height: 100vh;
+}
+
+.hidden {
+  display: none !important;
+}
+
+/* --- CESIUM MAP CONTAINER --- */
+#cesiumContainer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 1;
+  transition: width 0.3s ease-in-out;
+}
+
+/* Hide Cesium UI clutter */
+.cesium-viewer-bottom,
+.cesium-viewer-toolbar {
+  display: none !important;
+}
+
+/* --- BASE UI COMPONENTS (Z-INDEX 20 OVER MAP) --- */
+.topbar, .control-shell, .drawer, .selected-strip {
+  position: absolute;
+  z-index: 20;
+  background: var(--bg-panel);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+}
+
+/* Topbar */
+.topbar {
+  top: 10px;
+  left: 10px;
+  right: 10px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  padding: 0 15px;
+  gap: 15px;
+}
+
+/* Control Shell (Left Panel) */
+.control-shell {
+  top: 70px;
+  left: 10px;
+  width: 320px;
+  padding: 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Radar Drawer (Right/Floating Info) */
+.drawer {
+  top: 70px;
+  right: 10px;
+  width: 350px;
+  padding: 15px;
+  display: none; /* Shown via JS */
+}
+
+/* Selected Strip (Bottom) */
+.selected-strip {
+  bottom: 10px;
+  left: 10px;
+  right: 10px;
+  height: 60px;
+  display: none; /* Shown via JS */
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+}
+
+/* --- BUTTONS & INPUTS --- */
+button, select {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-main);
+  border: 1px solid var(--border-color);
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.2s;
+}
+
+button:hover, select:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+button.active {
+  background: var(--accent-cyan);
+  color: var(--bg-dark);
+  border-color: var(--accent-cyan);
+  font-weight: bold;
+}
+
+select {
+  width: 100%;
+}
+
+/* --- TABS --- */
+.tabs {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.tab-btn {
+  flex: 1;
+  text-align: center;
+  background: transparent;
+  border: 1px solid transparent;
+  border-bottom: 2px solid rgba(255,255,255,0.2);
+  border-radius: 0;
+}
+
+.tab-btn.active {
+  border-bottom-color: var(--accent-cyan);
+  color: var(--accent-cyan);
+  background: transparent;
+}
+
+/* --- DATA GRIDS --- */
+.data-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.data-box {
+  background: rgba(0, 0, 0, 0.3);
+  padding: 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.05);
+}
+
+.data-box label {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+  text-transform: uppercase;
+}
+
+.data-box span {
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+/* --- 50/50 SPLIT SCREEN MODE (IFE) --- */
+
+/* 1. Shrink map to the left half */
+body.mode-ife #cesiumContainer {
+  width: 50vw !important;
+}
+
+/* 2. Constrain left-side panels so they don't overlap the IFE side */
+body.mode-ife .topbar, 
+body.mode-ife .control-shell, 
+body.mode-ife .selected-strip {
+  max-width: calc(50vw - 20px);
+}
+
+/* 3. Create the right-half IFE container */
+body.mode-ife .ife-overlay {
+  position: fixed !important;
+  left: 50vw !important;
+  width: 50vw !important;
+  top: 0 !important;
+  height: 100vh !important;
+  background: var(--bg-panel-solid) !important;
+  border-left: 1px solid var(--border-color) !important;
+  z-index: 50 !important;
+  pointer-events: auto !important;
+  overflow-y: auto;
+}
+
+/* 4. Make panels inside IFE fill the right half naturally */
+body.mode-ife .ife-panel,
+body.mode-ife .ife-welcome {
+  position: relative !important;
+  width: 100% !important;
+  height: auto !important;
+  min-height: 100%;
+  left: 0 !important;
+  top: 0 !important;
+  transform: none !important;
+  border: none !important;
+  background: transparent !important;
+  padding: 30px;
+}
+
+/* --- DEP -> ARR PROGRESS BAR --- */
+.route-progress {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 20px 0;
+  position: relative;
+}
+
+.route-progress::before {
+  content: '';
+  position: absolute;
+  left: 40px;
+  right: 40px;
+  height: 4px;
+  background: linear-gradient(90deg, var(--accent-cyan), var(--accent-green));
+  z-index: 0;
+  border-radius: 2px;
+}
+
+.route-point {
+  background: var(--bg-panel-solid);
+  padding: 0 10px;
+  z-index: 1;
+  text-align: center;
+}
+
+.route-point span {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.route-point strong {
+  font-size: 1.5rem;
+  color: var(--accent-green);
+}
+
+/* --- GLASS COCKPIT (PFD - ARTIFICIAL HORIZON) --- */
+.pfd-container {
+  width: 100%;
+  max-width: 400px;
+  height: 350px;
+  margin: 20px auto;
+  background: #000;
+  border-radius: 15px;
+  border: 3px solid #333;
+  position: relative;
+  overflow: hidden;
+}
+
+.pfd-face {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  top: 0;
+  left: 0;
+  transform-origin: center center;
+  /* Smooth transform transition for pitch and roll */
+  transition: transform 0.1s linear; 
+}
+
+/* Extended sizes prevent clipping when rolled */
+.pfd-face .sky, .pfd-face .ground {
+  position: absolute;
+  width: 200% !important;
+  height: 200% !important;
+  left: -50% !important;
+}
+
+.pfd-face .sky {
+  top: -100% !important;
+  background: linear-gradient(to bottom, #10428a, #2c7bb6);
+}
+
+.pfd-face .ground {
+  bottom: -100% !important;
+  background: linear-gradient(to top, #5c3c16, #8b5a2b);
+}
+
+.pfd-face .horizon-line {
+  position: absolute;
+  top: 50%;
+  left: -50%;
+  width: 200%;
+  height: 3px;
+  background: #fff;
+  transform: translateY(-50%);
+  box-shadow: 0 0 5px rgba(0,0,0,0.8);
+}
+
+/* Static plane reticle in the exact center */
+.pfd-reticle {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 100px;
+  height: 10px;
+  transform: translate(-50%, -50%);
+  z-index: 10;
+}
+.pfd-reticle::before, .pfd-reticle::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  width: 35px;
+  height: 6px;
+  background: #ffeb3b; /* Yellow reticle */
+  border: 1px solid #000;
+}
+.pfd-reticle::before { left: 0; border-right: none; }
+.pfd-reticle::after { right: 0; border-left: none; }
+
+/* Tapes overlay (Speed Left, Alt Right) */
+.pfd-tapes {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 20;
+}
+
+.tape {
+  position: absolute;
+  top: 10%;
+  bottom: 10%;
+  width: 60px;
+  background: rgba(0,0,0,0.5);
+  border: 1px solid rgba(255,255,255,0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 1.1rem;
+}
+.tape.speed { left: 10px; color: var(--accent-cyan); }
+.tape.alt { right: 10px; color: var(--accent-green); }
+
+/* Engine / Nav block */
+.glass-readouts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+  margin-top: 15px;
 }
