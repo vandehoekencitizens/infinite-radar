@@ -13,7 +13,7 @@
   <div id="app">
     <main id="cesiumContainer"></main>
 
-    <!-- Left control -->
+    <!-- Left Control Shell -->
     <aside class="control-shell glass" id="controlShell">
       <div class="brand">
         <div class="brand-badge">✈</div>
@@ -50,13 +50,12 @@
       </div>
 
       <button id="openRandomBtn" class="mt8">Open Random Aircraft</button>
-
       <div id="status" class="status">Initializing…</div>
     </aside>
 
-    <!-- Top bar -->
+    <!-- Topbar -->
     <header class="topbar glass">
-      <div>
+      <div class="top-left">
         <strong id="topMode">Radar Mode</strong>
         <span class="muted">•</span>
         <span id="topServer">No server selected</span>
@@ -69,12 +68,22 @@
       </div>
     </header>
 
-    <!-- Radar drawer -->
+    <!-- Radar Drawer -->
     <section id="flightDrawer" class="drawer glass" style="display:none;">
       <div class="drawer-head">
-        <div>
-          <h3 id="fiCallsign">-</h3>
-          <p id="fiUser">-</p>
+        <div class="drawer-ident">
+          <div class="aircraft-avatar">✈</div>
+          <div>
+            <h3 id="fiCallsign">-</h3>
+            <p id="fiUser">-</p>
+          </div>
+        </div>
+        <div class="drawer-icons">
+          <button title="Share">↗</button>
+          <button title="Favorite">☆</button>
+          <button title="History">↺</button>
+          <button title="Collapse">⌄</button>
+          <button title="Close" id="drawerCloseBtn">✕</button>
         </div>
       </div>
 
@@ -101,15 +110,12 @@
           <div class="instrument pfd">
             <div class="instr-title">PFD</div>
             <div class="pfd-face">
-              <div class="sky"></div>
-              <div class="ground"></div>
-              <div class="horizon-line"></div>
-              <div class="crosshair"></div>
+              <div class="sky"></div><div class="ground"></div><div class="horizon-line"></div>
+              <div class="pitch-ladder"></div><div class="crosshair"></div>
               <div class="pfd-speed" id="gcSpeedTape">GS 0</div>
               <div class="pfd-alt" id="gcAltTape">ALT 0</div>
             </div>
           </div>
-
           <div class="instrument nd">
             <div class="instr-title">ND</div>
             <div class="nd-face">
@@ -119,7 +125,6 @@
               <div class="nd-readout" id="gcNDR">HDG 000</div>
             </div>
           </div>
-
           <div class="instrument eng">
             <div class="instr-title">ENG</div>
             <div class="eng-wrap">
@@ -131,19 +136,15 @@
               <div class="bar"><i id="gcEgtR"></i></div>
             </div>
           </div>
-
           <div class="instrument fpln">
             <div class="instr-title">F-PLAN</div>
-            <div class="fpln-list" id="gcFpln">
-              <div>RTE UNAVAILABLE</div>
-              <div>USING LIVE POSITION</div>
-            </div>
+            <div class="fpln-list" id="gcFpln"></div>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- Bottom selected strip -->
+    <!-- Bottom strip -->
     <section id="selectedStrip" class="selected-strip glass" style="display:none;">
       <div class="strip-left">
         <div class="plane-badge">✈</div>
@@ -160,7 +161,7 @@
       </div>
     </section>
 
-    <!-- Floating HUD -->
+    <!-- HUD -->
     <section id="hudCard" class="hud glass">
       <h3>Cockpit HUD</h3>
       <div class="hud-grid">
@@ -171,19 +172,24 @@
       </div>
     </section>
 
-    <!-- IFE overlay flow -->
+    <!-- IFE Overlay -->
     <section id="ifeOverlay" class="ife-overlay hidden">
-      <!-- Screen A -->
       <div id="ifeWelcome" class="ife-welcome">
         <div class="welcome-left">
           <p>WELCOME ABOARD</p>
-          <h2 id="welcomeCallsign">CX33</h2>
+          <h2 id="welcomeCallsign">--</h2>
           <h1><span id="fromCode">SFO</span> TO <span id="toCode">HKG</span></h1>
           <button id="ifeStartBtn" class="primary big">START</button>
         </div>
+        <div class="welcome-right">
+          <div class="globe-orbit">
+            <div class="orb"></div>
+            <div class="route-arc"></div>
+            <div class="plane-dot">✈</div>
+          </div>
+        </div>
       </div>
 
-      <!-- Screen B -->
       <div id="ifePanel" class="ife-panel hidden">
         <div class="ife-head">
           <div>
@@ -191,7 +197,11 @@
             <p id="ifeSub">Aircraft • Pilot</p>
           </div>
           <div class="ife-head-actions">
-            <button id="ifeCloseBtn">✕</button>
+            <button title="Share">↗</button>
+            <button title="Favorite">☆</button>
+            <button title="History">↺</button>
+            <button title="Collapse">⌄</button>
+            <button id="ifeCloseBtn" title="Close">✕</button>
           </div>
         </div>
 
@@ -208,9 +218,9 @@
             <div class="stat"><span>VERT. SPEED</span><strong id="ifeVs">-</strong></div>
           </div>
           <div class="progress-card">
-            <div><small>Departure</small><strong id="ifeDep">YPPH</strong></div>
+            <div><small>Departure</small><strong id="ifeDep">----</strong></div>
             <div class="line"></div>
-            <div><small>Arrival</small><strong id="ifeArr">WMKK</strong></div>
+            <div><small>Arrival</small><strong id="ifeArr">----</strong></div>
           </div>
           <div class="route-card" id="ifeRoute">Route unavailable</div>
         </div>
@@ -220,7 +230,8 @@
             <div class="instrument pfd">
               <div class="instr-title">PFD</div>
               <div class="pfd-face">
-                <div class="sky"></div><div class="ground"></div><div class="horizon-line"></div><div class="crosshair"></div>
+                <div class="sky"></div><div class="ground"></div><div class="horizon-line"></div>
+                <div class="pitch-ladder"></div><div class="crosshair"></div>
                 <div class="pfd-speed" id="ifeGcSpeed">GS 0</div>
                 <div class="pfd-alt" id="ifeGcAlt">ALT 0</div>
               </div>
