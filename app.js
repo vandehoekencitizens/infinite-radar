@@ -1,11 +1,14 @@
 /**
- * Infinite Tracker v1.5 (Final integration)
- * - Guaranteed icon visibility via Cesium PinBuilder
+ * Infinite Tracker v1.6
+ * Full replacement app.js
+ *
+ * Fixes included:
+ * - Aircraft icon hard-fix: no billboard textures, uses guaranteed point + label marker
+ * - Map visibility fix: keeps UI as floating cards (not full-screen takeover)
+ * - ETA clarified as user's local time
+ * - Time to Arrival shown as "X h Y min"
+ * - Dep/Arr extraction with Arrival fallback = "NA"
  * - Flightplan + route endpoint wiring
- * - ETA + distance-to-destination calculations
- * - Departure/Arrival extraction with Arrival fallback = "NA"
- * - Correct IFE state machine
- * - Panel sizing safeguards
  */
 
 const APP_NAME = "Infinite Tracker";
@@ -20,7 +23,7 @@ const state = {
   apiKey: DEFAULT_API_KEY,
   sessionId: "",
   sessionName: "",
-  mode: "radar", // radar | ife
+  mode: "radar",
 
   viewer: null,
   polling: null,
@@ -33,17 +36,12 @@ const state = {
   boundariesEnabled: true,
   didInitialZoom: false,
 
-  // IFE state machine
   ifeStarted: false,
-  ifeView: "flightInfo", // flightInfo | glass
+  ifeView: "flightInfo",
 
-  // Detail caches
-  flightPlanCache: new Map(),  // flightId -> flightplan object|null
-  flightRouteCache: new Map(), // flightId -> route array|null
-  pendingDetailFetch: new Set(),
-
-  // Icon cache
-  pinIconDataUrl: null
+  flightPlanCache: new Map(),
+  flightRouteCache: new Map(),
+  pendingDetailFetch: new Set()
 };
 
 const byId = (id) => document.getElementById(id);
@@ -118,6 +116,7 @@ const els = {
 
   ifeTitle: byId("ifeTitle"),
   ifeSub: byId("ifeSub"),
+
   ifeTabFlightInfo: byId("ifeTabFlightInfo"),
   ifeTabGlass: byId("ifeTabGlass"),
   ifeFlightInfoView: byId("ifeFlightInfoView"),
@@ -143,14 +142,13 @@ const els = {
 };
 
 /* -------------------------------------------------------------------------- */
-/* Utilities */
+/* Utils */
 /* -------------------------------------------------------------------------- */
 
 function setStatus(msg, isError = false) {
   if (!els.status) return;
   els.status.textContent = msg;
   els.status.style.color = isError ? "#ff9f9f" : "var(--warn)";
-  console.log("[InfiniteTracker v1.5]", msg);
 }
 
 function fmt(value, digits = 0) {
@@ -174,21 +172,6 @@ async function apiGet(path) {
   return json.result;
 }
 
-/* -------------------------------------------------------------------------- */
-/* Cesium icon (guaranteed visibility) */
-/* -------------------------------------------------------------------------- */
-
-function getGuaranteedPlaneIcon() {
-  if (state.pinIconDataUrl) return state.pinIconDataUrl;
-  const pinBuilder = new Cesium.PinBuilder();
-  state.pinIconDataUrl = pinBuilder.fromText("✈", Cesium.Color.CYAN, 48).toDataURL();
-  return state.pinIconDataUrl;
-}
-
-/* -------------------------------------------------------------------------- */
-/* Math */
-/* -------------------------------------------------------------------------- */
-
 function haversineKm(lat1, lon1, lat2, lon2) {
   const R = 6371;
   const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -201,16 +184,28 @@ function haversineKm(lat1, lon1, lat2, lon2) {
   return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-function computeEtaString(distanceKm, gsKts) {
-  if (!Number.isFinite(distanceKm) || !Number.isFinite(gsKts) || gsKts < 30) return "--:--";
+function computeEtaDetails(distanceKm, gsKts) {
+  if (!Number.isFinite(distanceKm) || !Number.isFinite(gsKts) || gsKts < 30) {
+    return { etaLocal: "--:--", durationText: "-- h -- min" };
+  }
+
   const speedKmh = gsKts * 1.852;
-  const hoursRemaining = distanceKm / speedKmh;
-  const etaDate = new Date(Date.now() + hoursRemaining * 3600 * 1000);
-  return etaDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  const hours = distanceKm / speedKmh;
+  const totalMin = Math.max(0, Math.round(hours * 60));
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+
+  const etaDate = new Date(Date.now() + totalMin * 60000);
+  const etaLocal = etaDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+
+  return {
+    etaLocal, // user's local timezone
+    durationText: `${h} h ${m} min`
+  };
 }
 
 /* -------------------------------------------------------------------------- */
-/* Flightplan parsing (dep/arr with NA fallback) */
+/* Flight plan parsing */
 /* -------------------------------------------------------------------------- */
 
 function collectWaypointsDeep(items, out = []) {
@@ -267,7 +262,7 @@ function resolveAircraftType(f, fp) {
 }
 
 /* -------------------------------------------------------------------------- */
-/* Cesium setup */
+/* Cesium init */
 /* -------------------------------------------------------------------------- */
 
 function initCesium() {
@@ -319,14 +314,13 @@ async function applyGlobeStyle() {
 }
 
 /* -------------------------------------------------------------------------- */
-/* Session / mode */
+/* Sessions / mode */
 /* -------------------------------------------------------------------------- */
 
 async function loadSessions() {
   setStatus("Loading sessions...");
   const sessions = await apiGet("/sessions");
 
-  if (!els.serverSelect) return;
   els.serverSelect.innerHTML = `<option value="">Select server</option>`;
   sessions.forEach((s) => {
     const opt = document.createElement("option");
@@ -347,7 +341,10 @@ function setMode(mode) {
 
   els.ifeModeBtn?.classList.toggle("active", mode === "ife");
   els.radarModeBtn?.classList.toggle("active", mode === "radar");
-  if (els.topMode) els.topMode.textContent = mode === "ife" ? "IFE Mode" : "Radar Mode";
+
+  if (els.topMode) {
+    els.topMode.textContent = mode === "ife" ? "IFE Mode" : "Radar Mode";
+  }
 
   if (mode === "ife") {
     if (state.selectedFlightId) {
@@ -369,13 +366,6 @@ function showIFEPanel() {
   els.ifeOverlay?.classList.remove("hidden");
   els.ifeWelcome?.classList.add("hidden");
   els.ifePanel?.classList.remove("hidden");
-
-  // sizing guard
-  if (els.ifePanel) {
-    els.ifePanel.style.width = "min(1100px, 94vw)";
-    els.ifePanel.style.maxHeight = "88vh";
-    els.ifePanel.style.overflow = "auto";
-  }
 }
 
 function hideIFE() {
@@ -384,17 +374,17 @@ function hideIFE() {
 
 function setIFEView(view) {
   state.ifeView = view;
-  const isFlightInfo = view === "flightInfo";
+  const flightInfo = view === "flightInfo";
 
-  els.ifeTabFlightInfo?.classList.toggle("active", isFlightInfo);
-  els.ifeTabGlass?.classList.toggle("active", !isFlightInfo);
+  els.ifeTabFlightInfo?.classList.toggle("active", flightInfo);
+  els.ifeTabGlass?.classList.toggle("active", !flightInfo);
 
-  els.ifeFlightInfoView?.classList.toggle("hidden", !isFlightInfo);
-  els.ifeGlassView?.classList.toggle("hidden", isFlightInfo);
+  els.ifeFlightInfoView?.classList.toggle("hidden", !flightInfo);
+  els.ifeGlassView?.classList.toggle("hidden", flightInfo);
 }
 
 /* -------------------------------------------------------------------------- */
-/* Flight details endpoints */
+/* Details fetch */
 /* -------------------------------------------------------------------------- */
 
 async function fetchSelectedFlightDetails(flightId) {
@@ -414,7 +404,6 @@ async function fetchSelectedFlightDetails(flightId) {
       const route = await apiGet(`/sessions/${state.sessionId}/flights/${flightId}/route`);
       state.flightRouteCache.set(flightId, Array.isArray(route) ? route : []);
     } catch {
-      // Not supported on all servers/flights
       state.flightRouteCache.set(flightId, null);
     }
 
@@ -434,17 +423,30 @@ function createAircraftEntity(f, pos, sampled) {
   return state.viewer.entities.add({
     id: f.flightId,
     position: sampled,
-    billboard: {
-      image: getGuaranteedPlaneIcon(),
+
+    // guaranteed-visible marker (no texture loading problems)
+    point: {
       show: true,
-      width: 26,
-      height: 26,
-      scale: 1.0,
-      disableDepthTestDistance: Number.POSITIVE_INFINITY,
-      verticalOrigin: Cesium.VerticalOrigin.CENTER,
-      horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
-      rotation: Cesium.Math.toRadians((f.heading || 0) - 90)
+      pixelSize: 10,
+      color: Cesium.Color.fromCssColorString("#40e0ff"),
+      outlineColor: Cesium.Color.BLACK,
+      outlineWidth: 2,
+      disableDepthTestDistance: Number.POSITIVE_INFINITY
     },
+
+    // guaranteed-visible airplane glyph
+    label: {
+      text: "✈",
+      font: "20px sans-serif",
+      fillColor: Cesium.Color.WHITE,
+      outlineColor: Cesium.Color.BLACK,
+      outlineWidth: 4,
+      style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+      pixelOffset: new Cesium.Cartesian2(0, -2),
+      disableDepthTestDistance: Number.POSITIVE_INFINITY,
+      eyeOffset: new Cesium.Cartesian3(0, 0, -10)
+    },
+
     polyline: {
       positions: [pos],
       width: 2,
@@ -459,6 +461,7 @@ function upsertAircraft(f) {
   const pos = Cesium.Cartesian3.fromDegrees(Number(f.longitude), Number(f.latitude), altM);
 
   let rec = state.aircraftMap.get(f.flightId);
+
   if (!rec) {
     const sampled = new Cesium.SampledPositionProperty();
     sampled.setInterpolationOptions({
@@ -467,15 +470,19 @@ function upsertAircraft(f) {
     });
     sampled.addSample(now, pos);
 
-    const entity = createAircraftEntity(f, pos, sampled);
-    rec = { entity, sampled, trail: [pos], last: f };
+    rec = {
+      entity: createAircraftEntity(f, pos, sampled),
+      sampled,
+      trail: [pos],
+      last: f
+    };
     state.aircraftMap.set(f.flightId, rec);
   } else {
     rec.sampled.addSample(now, pos);
     rec.trail.push(pos);
     if (rec.trail.length > TRAIL_LENGTH) rec.trail.shift();
+
     rec.entity.polyline.positions = rec.trail;
-    rec.entity.billboard.rotation = Cesium.Math.toRadians((f.heading || 0) - 90);
     rec.last = f;
   }
 }
@@ -493,7 +500,8 @@ function removeMissingAircraft(activeIds) {
 function updateSelectedStyles() {
   for (const [id, rec] of state.aircraftMap.entries()) {
     const selected = id === state.selectedFlightId;
-    rec.entity.billboard.scale = selected ? 1.35 : 1.0;
+    rec.entity.point.pixelSize = selected ? 12 : 10;
+    rec.entity.label.scale = selected ? 1.15 : 1.0;
     rec.entity.polyline.width = selected ? 3 : 2;
     rec.entity.polyline.material = selected
       ? Cesium.Color.fromCssColorString("#34f5c5").withAlpha(0.9)
@@ -610,7 +618,6 @@ function updatePanelsFromSelected() {
   const routeReports = state.flightRouteCache.get(f.flightId);
   const aType = resolveAircraftType(f, fp);
 
-  // Radar
   els.fiCallsign.textContent = f.callsign || "-";
   els.fiUser.textContent = f.username || "-";
   els.fiSpd.textContent = `${Math.round(f.speed || 0)} kts`;
@@ -620,7 +627,6 @@ function updatePanelsFromSelected() {
   els.fiLat.textContent = fmt(f.latitude, 4);
   els.fiLon.textContent = fmt(f.longitude, 4);
 
-  // Strip
   els.stripCallsign.textContent = f.callsign || "-";
   els.stripType.textContent = aType;
   els.stripPilot.textContent = f.username || "-";
@@ -628,22 +634,18 @@ function updatePanelsFromSelected() {
   els.stripAlt.textContent = `${Math.round(f.altitude || 0)} ft`;
   els.stripVs.textContent = `${Math.round(f.verticalSpeed || 0)} fpm`;
 
-  // HUD + Instruments
   bindHud(f);
   bindGlass("gc", f, fp);
   bindGlass("ifeGc", f, fp);
 
-  // IFE headline
   els.ifeTitle.textContent = f.callsign || "--";
   els.ifeSub.textContent = `${aType} • ${f.username || "-"}`;
   els.welcomeCallsign.textContent = f.callsign || "--";
-
   els.ifeSpd.textContent = `${Math.round(f.speed || 0)} kts`;
   els.ifeAlt.textContent = `${Math.round(f.altitude || 0)} ft`;
   els.ifeHdg.textContent = `${Math.round(f.heading || 0)}°`;
   els.ifeVs.textContent = `${Math.round(f.verticalSpeed || 0)} fpm`;
 
-  // Dep/Arr with NA fallback
   const parsed = extractDepArrFromFlightPlan(fp);
   const dep = parsed.dep || "DEP";
   const arr = parsed.arr || "NA";
@@ -653,32 +655,31 @@ function updatePanelsFromSelected() {
   if (els.fromCode) els.fromCode.textContent = dep;
   if (els.toCode) els.toCode.textContent = arr;
 
-  // Route + ETA
   if (parsed.points.length >= 1) {
-    const destPoint = parsed.points[parsed.points.length - 1];
+    const dest = parsed.points[parsed.points.length - 1];
     const distKm = haversineKm(
       Number(f.latitude),
       Number(f.longitude),
-      Number(destPoint.lat),
-      Number(destPoint.lon)
+      Number(dest.lat),
+      Number(dest.lon)
     );
-    const etaText = computeEtaString(distKm, Number(f.speed || 0));
+
+    const eta = computeEtaDetails(distKm, Number(f.speed || 0));
     const routeText = parsed.routeNames.length
       ? parsed.routeNames.join(" → ")
       : "No route names";
 
-    const routeMeta = Array.isArray(routeReports)
-      ? ` • Track samples: ${routeReports.length}`
-      : "";
+    const trackInfo = Array.isArray(routeReports) ? `Track samples: ${routeReports.length}` : "Track samples: n/a";
 
     if (els.ifeRoute) {
       els.ifeRoute.innerHTML = `
         <div>${routeText}</div>
         <div style="margin-top:10px;display:flex;gap:18px;flex-wrap:wrap;">
           <span>Distance to Destination: <b>${Math.round(distKm)} km</b></span>
-          <span>Estimated Time of Arrival: <b>${etaText}</b></span>
-          <span>Arrival: <b>${arr || "NA"}</b></span>
-          <span>${routeMeta}</span>
+          <span>ETA (your local time): <b>${eta.etaLocal}</b></span>
+          <span>Time to Arrival: <b>${eta.durationText}</b></span>
+          <span>Arrival: <b>${arr}</b></span>
+          <span>${trackInfo}</span>
         </div>
       `;
     }
@@ -686,7 +687,9 @@ function updatePanelsFromSelected() {
     if (els.ifeRoute) {
       els.ifeRoute.innerHTML = `
         <div>No valid flight plan waypoints available</div>
-        <div style="margin-top:8px;">Arrival set to <b>NA</b></div>
+        <div style="margin-top:8px;">ETA (your local time): <b>--:--</b></div>
+        <div>Time to Arrival: <b>-- h -- min</b></div>
+        <div>Arrival: <b>NA</b></div>
       `;
     }
   }
@@ -707,21 +710,21 @@ async function pollFlights() {
 
   try {
     const flights = await apiGet(`/sessions/${state.sessionId}/flights`);
-    const activeIds = new Set();
+    const active = new Set();
 
     flights.forEach((f) => {
-      activeIds.add(f.flightId);
+      active.add(f.flightId);
       upsertAircraft(f);
     });
 
-    removeMissingAircraft(activeIds);
+    removeMissingAircraft(active);
 
     if (!state.didInitialZoom && flights.length > 0) {
-      const first = flights[Math.floor(Math.random() * flights.length)];
+      const seed = flights[Math.floor(Math.random() * flights.length)];
       state.viewer.camera.flyTo({
         destination: Cesium.Cartesian3.fromDegrees(
-          Number(first.longitude),
-          Number(first.latitude),
+          Number(seed.longitude),
+          Number(seed.latitude),
           2500000
         ),
         duration: 1.2
@@ -729,11 +732,9 @@ async function pollFlights() {
       state.didInitialZoom = true;
     }
 
-    if (state.selectedFlightId) {
-      updatePanelsFromSelected();
-    }
-
+    if (state.selectedFlightId) updatePanelsFromSelected();
     updateFollowCamera();
+
     setStatus(`Tracking ${flights.length} flights on ${state.sessionName || "server"}`);
   } catch (e) {
     setStatus(`Polling error: ${e.message}`, true);
@@ -761,7 +762,7 @@ function clearAircraft() {
 }
 
 /* -------------------------------------------------------------------------- */
-/* Connect / tabs / events */
+/* Connect / events */
 /* -------------------------------------------------------------------------- */
 
 function connect() {
@@ -787,14 +788,12 @@ function setupRadarTabs() {
   const activate = (flightInfo) => {
     els.tabFlightInfo.classList.toggle("active", flightInfo);
     els.tabGlass.classList.toggle("active", !flightInfo);
-
     if (els.panelFlightInfo) els.panelFlightInfo.style.display = flightInfo ? "block" : "none";
     if (els.panelGlass) els.panelGlass.style.display = flightInfo ? "none" : "block";
   };
 
   els.tabFlightInfo.addEventListener("click", () => activate(true));
   els.tabGlass.addEventListener("click", () => activate(false));
-
   activate(true);
 }
 
@@ -812,20 +811,14 @@ function setupEvents() {
 
   els.togglePanelBtn?.addEventListener("click", () => {
     const hidden = els.controlShell?.classList.toggle("hidden");
-    if (els.togglePanelBtn) {
-      els.togglePanelBtn.textContent = hidden ? "Show Panel" : "Hide Panel";
-    }
+    if (els.togglePanelBtn) els.togglePanelBtn.textContent = hidden ? "Show Panel" : "Hide Panel";
   });
 
   els.followBtn?.addEventListener("click", () => {
     state.followSelected = !state.followSelected;
     els.followBtn.classList.toggle("active", state.followSelected);
-
-    if (!state.followSelected) {
-      state.viewer.trackedEntity = undefined;
-    } else {
-      updateFollowCamera();
-    }
+    if (!state.followSelected) state.viewer.trackedEntity = undefined;
+    else updateFollowCamera();
   });
 
   els.labelsToggleBtn?.addEventListener("click", async () => {
@@ -840,7 +833,6 @@ function setupEvents() {
     await applyGlobeStyle();
   });
 
-  // IFE flow
   els.ifeStartBtn?.addEventListener("click", () => {
     state.ifeStarted = true;
     showIFEPanel();
@@ -880,16 +872,16 @@ function setupEvents() {
     setIFEView("flightInfo");
     setMode("radar");
 
-    // sizing safeguards
+    // Keep map visible by constraining floating panels
     if (els.drawer) {
       els.drawer.style.width = "min(980px, calc(100vw - 32px))";
-      els.drawer.style.maxHeight = "86vh";
+      els.drawer.style.maxHeight = "70vh";
       els.drawer.style.overflow = "auto";
     }
 
     if (els.ifePanel) {
-      els.ifePanel.style.width = "min(1100px, 94vw)";
-      els.ifePanel.style.maxHeight = "88vh";
+      els.ifePanel.style.width = "min(980px, 90vw)";
+      els.ifePanel.style.maxHeight = "78vh";
       els.ifePanel.style.overflow = "auto";
     }
 
@@ -900,6 +892,3 @@ function setupEvents() {
     setStatus(`Startup error: ${e.message}`, true);
   }
 })();
-
-
-
