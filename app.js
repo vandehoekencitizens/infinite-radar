@@ -2,6 +2,7 @@ const APP_NAME = "Infinite Tracker";
 const DEFAULT_API_KEY = "tyy8znhl0u5kbbb2vuvdhfetmsil041u";
 const CESIUM_ION_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI3MDU4NWI1YS03ZGUxLTRmMzEtODEwZi01MDNlM2QyMTg5MzAiLCJpZCI6NDExNTkzLCJpYXQiOjE3NzQ5MjgxNjh9.NeKegq8BpQ4KqIs2hJWNgoEy2c0vidgNg869ldUVFew";
 const API_BASE = "https://api.infiniteflight.com/public/v2";
+
 const POLL_MS = 5000;
 const TRAIL_LENGTH = 140;
 const HOSTED_PLANE_ICON_FALLBACK = "https://infinite-tracker.tech/plane.svg";
