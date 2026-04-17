@@ -7,9 +7,9 @@
   "theme_color": "#00d2ff",
   "icons": [
     {
-      "src": "https://webcdn.infiniteflight.com/static/svgs/logo_white.svg",
+      "src": "https://user-images.githubusercontent.com/60173079/85006386-b12d9300-b177-11ea-8b2c-4635e1164035.jpg",
       "sizes": "512x512",
-      "type": "image/svg+xml",
+      "type": "image/jpeg",
       "purpose": "any maskable"
     }
   ]
