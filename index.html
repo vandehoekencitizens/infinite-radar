@@ -4,272 +4,202 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Infinite Tracker</title>
-
-  <script src="https://cesium.com/downloads/cesiumjs/releases/1.118/Build/Cesium/Cesium.js"></script>
-  <link href="https://cesium.com/downloads/cesiumjs/releases/1.118/Build/Cesium/Widgets/widgets.css" rel="stylesheet" />
-  <link rel="stylesheet" href="./style.css" />
+  
+  <!-- CesiumJS -->
+  <script src="https://cesium.com/downloads/cesiumjs/releases/1.112/Build/Cesium/Cesium.js"></script>
+  <link href="https://cesium.com/downloads/cesiumjs/releases/1.112/Build/Cesium/Widgets/widgets.css" rel="stylesheet" />
+  
+  <!-- Stylesheet -->
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body class="mode-radar">
-  <div id="app">
-    <main id="cesiumContainer"></main>
 
-    <!-- Left Control Shell -->
-    <aside class="control-shell glass" id="controlShell">
-      <div class="brand">
-        <div class="brand-badge">✈</div>
-        <div>
-          <h1>Infinite Tracker</h1>
-          <p>Infinite Flight Tracker</p>
-        </div>
-      </div>
+  <!-- Cesium Map Container -->
+  <div id="cesiumContainer"></div>
 
-      <div class="section">
-        <label for="serverSelect">Server</label>
-        <select id="serverSelect">
-          <option value="">Select server</option>
-        </select>
-      </div>
-
-      <div class="section">
-        <label>Display Mode</label>
-        <div class="mode-grid">
-          <button id="ifeModeBtn" class="mode-card">
-            <span class="mode-title">IFE Mode</span>
-            <span class="mode-sub">Cinematic passenger view</span>
-          </button>
-          <button id="radarModeBtn" class="mode-card active">
-            <span class="mode-title">Radar Mode</span>
-            <span class="mode-sub">Technical radar view</span>
-          </button>
-        </div>
-      </div>
-
-      <div class="action-row">
-        <button id="connectBtn" class="primary">Connect</button>
-        <button id="refreshBtn">Refresh Sessions</button>
-      </div>
-
-      <button id="openRandomBtn" class="mt8">Open Random Aircraft</button>
-      <div id="status" class="status">Initializing…</div>
-    </aside>
-
-    <!-- Topbar -->
-    <header class="topbar glass">
-      <div class="top-left">
-        <strong id="topMode">Radar Mode</strong>
-        <span class="muted">•</span>
-        <span id="topServer">No server selected</span>
-      </div>
-      <div class="top-actions">
-        <button id="boundariesToggleBtn">Boundaries: ON</button>
-        <button id="labelsToggleBtn">Map Labels: ON</button>
-        <button id="followBtn">Follow Selected</button>
-        <button id="togglePanelBtn">Hide Panel</button>
-      </div>
-    </header>
-
-    <!-- Radar Drawer -->
-    <section id="flightDrawer" class="drawer glass" style="display:none;">
-      <div class="drawer-head">
-        <div class="drawer-ident">
-          <div class="aircraft-avatar">✈</div>
-          <div>
-            <h3 id="fiCallsign">-</h3>
-            <p id="fiUser">-</p>
-          </div>
-        </div>
-        <div class="drawer-icons">
-          <button title="Share">↗</button>
-          <button title="Favorite">☆</button>
-          <button title="History">↺</button>
-          <button title="Collapse">⌄</button>
-          <button title="Close" id="drawerCloseBtn">✕</button>
-        </div>
-      </div>
-
-      <div class="drawer-tabs">
-        <button id="tabFlightInfo" class="tab active">FLIGHT INFO</button>
-        <button id="tabGlass" class="tab">GLASS COCKPIT</button>
-      </div>
-
-      <div id="panelFlightInfo" class="drawer-panel">
-        <div class="stats-row">
-          <div class="stat"><span>SPEED (GS)</span><strong id="fiSpd">-</strong></div>
-          <div class="stat"><span>ALTITUDE</span><strong id="fiAlt">-</strong></div>
-          <div class="stat"><span>HEADING</span><strong id="fiHdg">-</strong></div>
-          <div class="stat"><span>VERT. SPEED</span><strong id="fiVs">-</strong></div>
-        </div>
-        <div class="coords-row">
-          <div class="stat"><span>LAT</span><strong id="fiLat">-</strong></div>
-          <div class="stat"><span>LON</span><strong id="fiLon">-</strong></div>
-        </div>
-      </div>
-
-      <div id="panelGlass" class="drawer-panel" style="display:none;">
-        <div class="glass-grid">
-          <div class="instrument pfd">
-            <div class="instr-title">PFD</div>
-            <div class="pfd-face">
-              <div class="sky"></div><div class="ground"></div><div class="horizon-line"></div>
-              <div class="pitch-ladder"></div><div class="crosshair"></div>
-              <div class="pfd-speed" id="gcSpeedTape">GS 0</div>
-              <div class="pfd-alt" id="gcAltTape">ALT 0</div>
-            </div>
-          </div>
-          <div class="instrument nd">
-            <div class="instr-title">ND</div>
-            <div class="nd-face">
-              <div class="ring r1"></div><div class="ring r2"></div><div class="ring r3"></div><div class="ring r4"></div>
-              <div class="needle" id="gcNeedle"></div>
-              <div class="nd-center">▲</div>
-              <div class="nd-readout" id="gcNDR">HDG 000</div>
-            </div>
-          </div>
-          <div class="instrument eng">
-            <div class="instr-title">ENG</div>
-            <div class="eng-wrap">
-              <div class="eng-gauge"><span>L N1</span><strong id="gcN1L">00.0</strong></div>
-              <div class="eng-gauge"><span>R N1</span><strong id="gcN1R">00.0</strong></div>
-            </div>
-            <div class="eng-bars">
-              <div class="bar"><i id="gcEgtL"></i></div>
-              <div class="bar"><i id="gcEgtR"></i></div>
-            </div>
-          </div>
-          <div class="instrument fpln">
-            <div class="instr-title">F-PLAN</div>
-            <div class="fpln-list" id="gcFpln"></div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Bottom strip -->
-    <section id="selectedStrip" class="selected-strip glass" style="display:none;">
-      <div class="strip-left">
-        <div class="plane-badge">✈</div>
-        <div>
-          <h3 id="stripCallsign">-</h3>
-          <p id="stripType">-</p>
-          <small id="stripPilot">-</small>
-        </div>
-      </div>
-      <div class="strip-metrics">
-        <div><span>GS</span><strong id="stripGs">-</strong></div>
-        <div><span>ALT</span><strong id="stripAlt">-</strong></div>
-        <div><span>V/S</span><strong id="stripVs">-</strong></div>
-      </div>
-    </section>
-
-    <!-- HUD -->
-    <section id="hudCard" class="hud glass">
-      <h3>Cockpit HUD</h3>
-      <div class="hud-grid">
-        <div><span>Callsign</span><strong id="hudCallsign">-</strong></div>
-        <div><span>ALT</span><strong id="hudAlt">- ft</strong></div>
-        <div><span>SPD</span><strong id="hudSpd">- kts</strong></div>
-        <div><span>HDG</span><strong id="hudHdg">-°</strong></div>
-      </div>
-    </section>
-
-    <!-- IFE Overlay -->
-    <section id="ifeOverlay" class="ife-overlay hidden">
-      <div id="ifeWelcome" class="ife-welcome">
-        <div class="welcome-left">
-          <p>WELCOME ABOARD</p>
-          <h2 id="welcomeCallsign">--</h2>
-          <h1><span id="fromCode">SFO</span> TO <span id="toCode">HKG</span></h1>
-          <button id="ifeStartBtn" class="primary big">START</button>
-        </div>
-        <div class="welcome-right">
-          <div class="globe-orbit">
-            <div class="orb"></div>
-            <div class="route-arc"></div>
-            <div class="plane-dot">✈</div>
-          </div>
-        </div>
-      </div>
-
-      <div id="ifePanel" class="ife-panel hidden">
-        <div class="ife-head">
-          <div>
-            <h2 id="ifeTitle">--</h2>
-            <p id="ifeSub">Aircraft • Pilot</p>
-          </div>
-          <div class="ife-head-actions">
-            <button title="Share">↗</button>
-            <button title="Favorite">☆</button>
-            <button title="History">↺</button>
-            <button title="Collapse">⌄</button>
-            <button id="ifeCloseBtn" title="Close">✕</button>
-          </div>
-        </div>
-
-        <div class="ife-tabs">
-          <button id="ifeTabFlightInfo" class="active">FLIGHT INFO</button>
-          <button id="ifeTabGlass">GLASS COCKPIT</button>
-        </div>
-
-        <div id="ifeFlightInfoView" class="ife-view">
-          <div class="stats-row">
-            <div class="stat"><span>SPEED (GS)</span><strong id="ifeSpd">-</strong></div>
-            <div class="stat"><span>ALTITUDE</span><strong id="ifeAlt">-</strong></div>
-            <div class="stat"><span>HEADING</span><strong id="ifeHdg">-</strong></div>
-            <div class="stat"><span>VERT. SPEED</span><strong id="ifeVs">-</strong></div>
-          </div>
-          <div class="progress-card">
-            <div><small>Departure</small><strong id="ifeDep">----</strong></div>
-            <div class="line"></div>
-            <div><small>Arrival</small><strong id="ifeArr">----</strong></div>
-          </div>
-          <div class="route-card" id="ifeRoute">Route unavailable</div>
-        </div>
-
-        <div id="ifeGlassView" class="ife-view hidden">
-          <div class="glass-grid">
-            <div class="instrument pfd">
-              <div class="instr-title">PFD</div>
-              <div class="pfd-face">
-                <div class="sky"></div><div class="ground"></div><div class="horizon-line"></div>
-                <div class="pitch-ladder"></div><div class="crosshair"></div>
-                <div class="pfd-speed" id="ifeGcSpeed">GS 0</div>
-                <div class="pfd-alt" id="ifeGcAlt">ALT 0</div>
-              </div>
-            </div>
-            <div class="instrument nd">
-              <div class="instr-title">ND</div>
-              <div class="nd-face">
-                <div class="ring r1"></div><div class="ring r2"></div><div class="ring r3"></div><div class="ring r4"></div>
-                <div class="needle" id="ifeGcNeedle"></div>
-                <div class="nd-center">▲</div>
-                <div class="nd-readout" id="ifeGcNdr">HDG 000</div>
-              </div>
-            </div>
-            <div class="instrument eng">
-              <div class="instr-title">ENG</div>
-              <div class="eng-wrap">
-                <div class="eng-gauge"><span>L N1</span><strong id="ifeGcN1L">00.0</strong></div>
-                <div class="eng-gauge"><span>R N1</span><strong id="ifeGcN1R">00.0</strong></div>
-              </div>
-              <div class="eng-bars">
-                <div class="bar"><i id="ifeGcEgtL"></i></div>
-                <div class="bar"><i id="ifeGcEgtR"></i></div>
-              </div>
-            </div>
-            <div class="instrument fpln">
-              <div class="instr-title">F-PLAN</div>
-              <div class="fpln-list" id="ifeGcFpln"></div>
-            </div>
-          </div>
-        </div>
-
-        <div class="config-bar">
-          <button id="changeViewBtn">Change View</button>
-        </div>
-      </div>
-    </section>
+  <!-- Top Navigation Bar -->
+  <div class="topbar glass-panel">
+    <div class="brand">
+      <span class="logo">✈</span>
+      <h1>Infinite Tracker</h1>
+    </div>
+    
+    <div class="modes">
+      <button id="radarModeBtn" class="active">Radar</button>
+      <button id="ifeModeBtn">IFE Split-Screen</button>
+    </div>
+    
+    <div class="status-indicator">
+      <span id="topMode">Radar Mode</span> • <span id="topServer">Not Connected</span>
+    </div>
   </div>
 
-  <script type="module" src="./app.js"></script>
+  <!-- Left Control Panel -->
+  <div class="control-shell glass-panel" id="controlShell">
+    
+    <div class="control-group">
+      <label>Server</label>
+      <select id="serverSelect">
+        <option>Loading...</option>
+      </select>
+      <div class="btn-row">
+        <button id="connectBtn" class="primary-btn">Connect</button>
+        <button id="refreshBtn">↻</button>
+      </div>
+    </div>
+    
+    <!-- Flight Search -->
+    <div class="control-group search-group">
+      <label>Flight Search</label>
+      <div class="search-row">
+        <input type="text" id="searchInput" placeholder="Search Callsign or User..." />
+        <button id="searchBtn">🔍</button>
+      </div>
+    </div>
+
+    <!-- Map Toggles -->
+    <div class="control-group map-controls">
+      <button id="openRandomBtn">🎲 Random Flight</button>
+      <button id="followBtn">📷 Follow: OFF</button>
+      <button id="labelsToggleBtn">Map Labels: ON</button>
+      <button id="boundariesToggleBtn">Boundaries: ON</button>
+    </div>
+
+    <!-- Status Output -->
+    <div class="status-bar" id="status">Ready.</div>
+  </div>
+
+  <button id="togglePanelBtn" class="floating-toggle glass-panel">Hide Panel</button>
+
+  <!-- Right Drawer (Radar Mode Flight Info) -->
+  <div class="drawer glass-panel" id="flightDrawer">
+    <div class="drawer-header">
+      <h2 id="fiCallsign">--</h2>
+      <button id="drawerCloseBtn" class="close-btn">✕</button>
+    </div>
+    <p class="subtitle" id="fiUser">--</p>
+
+    <div class="tabs">
+      <button id="tabFlightInfo" class="tab-btn active">Flight Info</button>
+      <button id="tabGlass" class="tab-btn">PFD View</button>
+    </div>
+
+    <div id="panelFlightInfo">
+      <div class="data-grid">
+        <div class="data-box">
+          <label>Speed (GS)</label>
+          <span id="fiSpd">-- kts</span>
+        </div>
+        <div class="data-box">
+          <label>Altitude</label>
+          <span id="fiAlt">-- ft</span>
+        </div>
+        <div class="data-box">
+          <label>Heading</label>
+          <span id="fiHdg">--°</span>
+        </div>
+        <div class="data-box">
+          <label>Vert. Speed</label>
+          <span id="fiVs">-- fpm</span>
+        </div>
+        <div class="data-box">
+          <label>Latitude</label>
+          <span id="fiLat">--</span>
+        </div>
+        <div class="data-box">
+          <label>Longitude</label>
+          <span id="fiLon">--</span>
+        </div>
+      </div>
+    </div>
+
+    <div id="panelGlass" class="hidden">
+      <!-- Airliner PFD Injected by JS here -->
+    </div>
+  </div>
+
+  <!-- Bottom Selected Strip -->
+  <div class="selected-strip glass-panel" id="selectedStrip">
+    <div class="strip-info">
+      <h3 id="stripCallsign">--</h3>
+      <span class="strip-type" id="stripType">--</span>
+      <span class="strip-pilot" id="stripPilot">--</span>
+    </div>
+    <div class="strip-stats">
+      <div>GS <strong id="stripGs">--</strong></div>
+      <div>ALT <strong id="stripAlt">--</strong></div>
+      <div>VS <strong id="stripVs">--</strong></div>
+    </div>
+  </div>
+
+  <!-- IFE SPLIT SCREEN OVERLAY -->
+  <div class="ife-overlay hidden" id="ifeOverlay">
+    
+    <!-- IFE Welcome Screen -->
+    <div class="ife-welcome" id="ifeWelcome">
+      <h1 id="welcomeCallsign">--</h1>
+      <h2>Welcome Aboard</h2>
+      <div class="route-codes">
+        <span id="fromCode">DEP</span> ➔ <span id="toCode">ARR</span>
+      </div>
+      <button id="ifeStartBtn" class="primary-btn pulse-btn">Start In-Flight Entertainment</button>
+      <button id="ifeCloseBtn" class="ghost-btn">Exit IFE</button>
+    </div>
+
+    <!-- IFE Main Panel -->
+    <div class="ife-panel hidden" id="ifePanel">
+      <div class="ife-header">
+        <div>
+          <h1 id="ifeTitle">--</h1>
+          <p id="ifeSub">--</p>
+        </div>
+        <button id="changeViewBtn" class="secondary-btn">Toggle PFD</button>
+      </div>
+
+      <!-- IFE Flight Info View -->
+      <div id="ifeFlightInfoView">
+        <div class="data-grid large">
+          <div class="data-box">
+            <label>Speed (GS)</label>
+            <span id="ifeSpd">-- kts</span>
+          </div>
+          <div class="data-box">
+            <label>Altitude</label>
+            <span id="ifeAlt">-- ft</span>
+          </div>
+          <div class="data-box">
+            <label>Heading</label>
+            <span id="ifeHdg">--°</span>
+          </div>
+          <div class="data-box">
+            <label>Vert. Speed</label>
+            <span id="ifeVs">-- fpm</span>
+          </div>
+        </div>
+
+        <div class="route-card data-box">
+          <div class="route-progress">
+            <div class="route-point">
+              <label>Departure</label>
+              <strong id="ifeDep">DEP</strong>
+            </div>
+            <div class="route-point">
+              <label>Arrival</label>
+              <strong id="ifeArr">ARR</strong>
+            </div>
+          </div>
+          <div id="ifeRoute" class="route-details">No route data</div>
+        </div>
+      </div>
+
+      <!-- IFE Glass View -->
+      <div id="ifeGlassView" class="hidden">
+        <!-- Airliner PFD injected by JS here -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Logic -->
+  <script src="app.js"></script>
 </body>
 </html>
